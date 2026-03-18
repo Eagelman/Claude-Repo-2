@@ -179,3 +179,64 @@ window.GS.exportArchive = function (storeId, from, to, format) {
 window.GS.getDbPath = function () {
   return window.GS.invoke('get_db_path', {});
 };
+
+// --- Files ---
+window.GS.writeFile = function (path, content) {
+  return window.GS.invoke('write_file', { path: path, content: content });
+};
+window.GS.writeFileBinary = function (path, content) {
+  return window.GS.invoke('write_file_binary', { path: path, content: content });
+};
+
+/**
+ * Show a save file dialog (Tauri v2 dialog plugin).
+ * Returns the chosen path or null if cancelled.
+ * @param {Object} opts - { defaultPath, filters: [{ name, extensions }] }
+ */
+window.GS.saveFileDialog = async function (opts) {
+  if (!window.GS.isTauri()) {
+    // Fallback: use browser download
+    return null;
+  }
+  try {
+    // Tauri v2 plugin dialog API
+    var dialog = window.__TAURI_PLUGIN_DIALOG__;
+    if (dialog && dialog.save) {
+      return await dialog.save(opts || {});
+    }
+    // Alternative path for Tauri v2
+    if (window.__TAURI__ && window.__TAURI__.dialog) {
+      return await window.__TAURI__.dialog.save(opts || {});
+    }
+    return null;
+  } catch (e) {
+    console.warn('[Bridge] Dialog not available:', e);
+    return null;
+  }
+};
+
+/**
+ * Save text content with a file dialog. Falls back to blob download.
+ * @param {string} content - The file content
+ * @param {string} filename - Default filename
+ * @param {string} mimeType - MIME type for fallback
+ * @param {Array} filters - [{name, extensions}] for dialog
+ */
+window.GS.saveWithDialog = async function (content, filename, mimeType, filters) {
+  if (window.GS.isTauri()) {
+    var path = await window.GS.saveFileDialog({
+      defaultPath: filename,
+      filters: filters || []
+    });
+    if (path) {
+      await window.GS.writeFile(path, content);
+      return true;
+    }
+  }
+  // Fallback: browser blob download
+  var blob = new Blob([content], { type: mimeType || 'application/octet-stream' });
+  var url = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: filename }).click();
+  URL.revokeObjectURL(url);
+  return true;
+};

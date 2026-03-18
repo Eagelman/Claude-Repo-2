@@ -1,4 +1,4 @@
-window.Compare = (function() {
+window.ComparePage = (function() {
   let DATA = {
   "store": {
     "id": 141,
@@ -195,6 +195,9 @@ window.Compare = (function() {
   ]
 };
   var COMPARE_DATA = DATA;
+
+var currentPeriod = '2w';
+var isRecUpload = false;
 
 // ================================================================
 // STATE
@@ -445,6 +448,12 @@ function buildMetricPills() {
 // ================================================================
 
 
+function setPeriod(p) {
+  if (p === 'rec') { isRecUpload = true; currentPeriod = '2w'; }
+  else { isRecUpload = false; currentPeriod = p; }
+  renderApp();
+}
+
 function renderApp() {
   const per  = COMPARE_DATA.period;
   const mdef = getMetricDef(activeMetric);
@@ -457,9 +466,7 @@ function renderApp() {
         <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
         <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
         <div class="ppills">
-          <button class="pp rec">Rec.Upload</button><div class="pdiv"></div>
-          <button class="pp">1w</button><button class="pp on">2w</button>
-          <button class="pp">4w</button><button class="pp">8w</button><button class="pp">12w</button>
+          ${window.GS.buildPills(currentPeriod, 'ComparePage.setPeriod', isRecUpload)}
         </div>
       </div>
       <div class="tb-r">
@@ -530,6 +537,7 @@ function cycleSort() {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();

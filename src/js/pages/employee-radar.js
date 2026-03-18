@@ -1,4 +1,4 @@
-window.EmployeeRadar = (function() {
+window.EmployeeRadarPage = (function() {
   let DATA = {
   "employee": {
     "id": 43,
@@ -212,6 +212,8 @@ window.EmployeeRadar = (function() {
   ]
 };
   var EMPLOYEE_DATA = DATA;
+  var currentPeriod = '2w';
+  var isRecUpload = false;
 
 // ─────────────────────────────────────────────────────────────
 // RADAR GEOMETRY
@@ -722,6 +724,8 @@ function setMM(mode) {
 // ─────────────────────────────────────────────────────────────
 
 
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='2w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
+
 function renderApp() {
   const emp = EMPLOYEE_DATA.employee;
   const per = EMPLOYEE_DATA.period;
@@ -736,14 +740,7 @@ function renderApp() {
               <div class="pnav">&#8250;</div>
               <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
               <div class="ppills">
-                <button class="pp rec">Rec.Upload</button>
-                <div class="pdiv"></div>
-                <button class="pp">3d</button><button class="pp">5d</button>
-                <div class="pdiv"></div>
-                <button class="pp">1w</button><button class="pp on">2w</button>
-                <button class="pp">4w</button><button class="pp">8w</button>
-                <button class="pp">12w</button><button class="pp">18w</button>
-                <button class="pp">26w</button>
+                ${window.GS.buildPills(currentPeriod, 'EmployeeRadarPage.setPeriod', isRecUpload)}
               </div>
             </div>
             <div class="tb-r">
@@ -801,12 +798,14 @@ renderApp();
   window.toggleGoalLines = typeof toggleGoalLines !== 'undefined' ? toggleGoalLines : function(){};
   window.toggleAcc = typeof toggleAcc !== 'undefined' ? toggleAcc : function(){};
   window.setMM = typeof setMM !== 'undefined' ? setMM : function(){};
+  window.EmployeeRadarPage.setPeriod = setPeriod;
 
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();

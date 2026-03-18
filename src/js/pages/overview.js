@@ -1,4 +1,4 @@
-window.Overview = (function() {
+window.OverviewPage = (function() {
   let DATA = {
   "period": {
     "label": "2 weeks",
@@ -161,6 +161,8 @@ window.Overview = (function() {
   }
 };
   var CHART_DATA = DATA;
+  var currentPeriod = '2w';
+  var isRecUpload = false;
   let currentMode = 'mean';
 
  // 'mean' | 'median'
@@ -407,20 +409,22 @@ window.Overview = (function() {
           <div class="pnav">&#8250;</div>
           <span class="pdate">Mar 1&ndash;14, 2026 (2w)</span>
           <div class="ppills">
-            <button class="pp rec">Rec.Upload</button>
-            <div class="pdiv"></div>
-            <button class="pp">3d</button><button class="pp">5d</button>
-            <div class="pdiv"></div>
-            <button class="pp">1w</button><button class="pp on">2w</button>
-            <button class="pp">4w</button><button class="pp">8w</button>
-            <button class="pp">12w</button><button class="pp">18w</button>
-            <button class="pp">26w</button><button class="pp">34w</button>
-            <button class="pp">48w</button><button class="pp">1yr</button>
-            <div class="pdiv"></div>
-            <button class="pp cp">Custom &#10022;</button>
+            ${window.GS.buildPills(currentPeriod, 'OverviewPage.setPeriod', isRecUpload)}
           </div>
         </div>
       </div>`;
+  }
+
+  function setPeriod(p) {
+    if (p === 'rec') {
+      isRecUpload = true;
+      currentPeriod = '2w';
+    } else {
+      isRecUpload = false;
+      currentPeriod = p;
+    }
+    // Future: query archival data here via GS.invoke
+    renderApp();
   }
 
   function renderApp(chartType) {
@@ -440,17 +444,7 @@ window.Overview = (function() {
           <div class="pnav">&#8250;</div>
           <span class="pdate">Mar 1&ndash;14, 2026 (2w)</span>
           <div class="ppills">
-            <button class="pp rec">Rec.Upload</button>
-            <div class="pdiv"></div>
-            <button class="pp">3d</button><button class="pp">5d</button>
-            <div class="pdiv"></div>
-            <button class="pp">1w</button><button class="pp on">2w</button>
-            <button class="pp">4w</button><button class="pp">8w</button>
-            <button class="pp">12w</button><button class="pp">18w</button>
-            <button class="pp">26w</button><button class="pp">34w</button>
-            <button class="pp">48w</button><button class="pp">1yr</button>
-            <div class="pdiv"></div>
-            <button class="pp cp">Custom &#10022;</button>
+            ${window.GS.buildPills(currentPeriod, 'OverviewPage.setPeriod', isRecUpload)}
           </div>
         </div>
       </div>
@@ -476,6 +470,8 @@ window.Overview = (function() {
       renderApp('bar');
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();
+window.OverviewPage.setPeriod = window.OverviewPage.setPeriod;

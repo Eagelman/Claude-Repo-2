@@ -1,4 +1,4 @@
-window.Goals = (function() {
+window.GoalsPage = (function() {
   let DATA = {
   "store": {
     "id": 141,
@@ -448,6 +448,7 @@ window.Goals = (function() {
 // ================================================================
 // STATE
 // ================================================================
+var currentPeriod = '4w'; var isRecUpload = false;
 let namesVisible  = false;   // hold-3s to toggle worst performer names
 let notesVisible  = false;   // hold-1s to toggle note body censoring
 let currentNoteCategory = "Analysis"; // active subfolder tab
@@ -458,6 +459,8 @@ let holdTimer     = null;
 // ================================================================
 // HELPERS
 // ================================================================
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='4w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
+
 function fmtVal(val, fmt) {
   if (fmt === 'pct')    return parseFloat(val).toFixed(2) + '%';
   if (fmt === 'dec1')   return parseFloat(val).toFixed(1);
@@ -845,10 +848,7 @@ function renderApp() {
               <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
               <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
               <div class="ppills">
-                <button class="pp rec">Rec. Upload</button><div class="pdiv"></div>
-                <button class="pp">1w</button><button class="pp">2w</button>
-                <button class="pp on">4w</button><button class="pp">8w</button>
-                <button class="pp">12w</button><button class="pp">18w</button><button class="pp">26w</button>
+                ${window.GS.buildPills(currentPeriod, 'GoalsPage.setPeriod', isRecUpload)}
               </div>
             </div>
             <div class="tb-r"><button class="btn-b" onclick="saveGoals()">Save goals</button></div>
@@ -1031,20 +1031,31 @@ function cancelReveal() {
 
 // DB refresh pattern documented in data contract block above.
 
-  window.toggleGoalLock = typeof toggleGoalLock !== 'undefined' ? toggleGoalLock : function(){};
-  window.saveGoals = typeof saveGoals !== 'undefined' ? saveGoals : function(){};
-  window.resetGoals = typeof resetGoals !== 'undefined' ? resetGoals : function(){};
-  window.flushGoalInputs = typeof flushGoalInputs !== 'undefined' ? flushGoalInputs : function(){};
-  window.toggleAcc = typeof toggleAcc !== 'undefined' ? toggleAcc : function(){};
-  window.toggleNoteEditor = typeof toggleNoteEditor !== 'undefined' ? toggleNoteEditor : function(){};
-  window.saveNote = typeof saveNote !== 'undefined' ? saveNote : function(){};
-  window.deleteNote = typeof deleteNote !== 'undefined' ? deleteNote : function(){};
-
+  window.toggleGoalLock = toggleGoalLock;
+  window.saveGoals = saveGoals;
+  window.resetGoals = resetGoals;
+  window.flushGoalInputs = flushGoalInputs;
+  window.toggleAcc = toggleAcc;
+  window.toggleNoteLock = toggleNoteLock;
+  window.deleteNote = deleteNote;
+  window.addNote = addNote;
+  window.changeNoteYear = changeNoteYear;
+  window.changeNoteMonth = changeNoteMonth;
+  window.changeCat = changeCat;
+  window.startReveal = startReveal;
+  window.startNoteReveal = startNoteReveal;
+  window.cancelReveal = cancelReveal;
+  window.togglePteLock = togglePteLock;
+  window.addPtsException = addPtsException;
+  window.savePtsExceptions = savePtsExceptions;
+  window.savePointSystem = savePointSystem;
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();
+window.GoalsPage.setPeriod = window.GoalsPage.setPeriod;

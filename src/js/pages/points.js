@@ -1,4 +1,4 @@
-window.Points = (function() {
+window.PointsPage = (function() {
   let DATA = {
   "store": { "id": 141, "name": "Store 141" },
   "period": { "label": "4 weeks", "from": "Mar 1, 2026", "to": "Mar 28, 2026", "days": 28 },
@@ -32,6 +32,7 @@ window.Points = (function() {
 // ================================================================
 // STATE
 // ================================================================
+var currentPeriod = '4w'; var isRecUpload = false;
 let namesVisible = false;
 let holdTimer    = null;
 let activeView   = 'leaderboard'; // 'leaderboard' | 'cust' | 'table'
@@ -41,6 +42,8 @@ let tableFilter  = '';
 // ================================================================
 // HELPERS
 // ================================================================
+
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='4w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
 
 // Colour interpolation for weekly bar sparklines
 function interpColour(hexA, hexB, t) {
@@ -511,11 +514,7 @@ function renderApp() {
               <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
               <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
               <div class="ppills">
-                <button class="pp rec">Rec. Upload</button><div class="pdiv"></div>
-                <button class="pp">1w</button><button class="pp">2w</button>
-                <button class="pp on">4w</button><button class="pp">8w</button>
-                <button class="pp">12w</button><button class="pp">18w</button>
-                <button class="pp">26w</button>
+                ${window.GS.buildPills(currentPeriod, 'PointsPage.setPeriod', isRecUpload)}
               </div>
             </div>
             <div class="tb-r"><span style="font-size:10px;color:var(--sl-lt);">Last finalized: ${POINTS_DATA.lastFinalized}</span></div>
@@ -535,15 +534,20 @@ function renderApp() {
 
 renderApp();
 
-  window.setView = typeof setView !== 'undefined' ? setView : function(){};
-  window.startHold = typeof startHold !== 'undefined' ? startHold : function(){};
-  window.cancelHold = typeof cancelHold !== 'undefined' ? cancelHold : function(){};
+  window.setView = setView;
+  window.startReveal = startReveal;
+  window.cancelReveal = cancelReveal;
+  window.sortTable = sortTable;
+  window.filterTable = filterTable;
+  window.exportCSV = exportCSV;
 
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();
+window.PointsPage.setPeriod = window.PointsPage.setPeriod;
