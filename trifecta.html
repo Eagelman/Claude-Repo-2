@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script>
+/* ================================================================
+   DATA CONTRACT  —  replace TRIFECTA_DATA, call renderApp()
+
+   Trifecta = employee hits SP$, Cust#, AND SP# on the same shift.
+   Tier 1 blue   ≥ goal       Tier 2 green  ≥ 110%
+   Tier 3 silver ≥ 125%       Tier 4 gold   ≥ 150% (rare)
+   Tier 5 diamond = double metrics (70 cust / $300 / 6 SP#  OR
+                                    105 cust / $450 / 9 SP#)
+   Gift card: $10 per trifecta day; $20 if Tier 5 (2×).
+   Dedup: same employee + same date → reject on upload.
+
+   Leaderboard formula (gear-editable):
+     score = (sp_d × spd_mult × spd_weight)
+           + (cust × cust_mult × cust_weight)
+           + (sp_n × spn_weight)
+     Summed across all trifecta days for the employee.
+
+   DB REFRESH:
+     fetch('/api/trifecta?store=141&period=4w')
+       .then(r => r.json())
+       .then(p => { Object.assign(TRIFECTA_DATA, p); renderApp(); });
+================================================================ */
+const TRIFECTA_DATA = {
+  "store": {
+    "id": 141,
+    "name": "Store 141"
+  },
+  "manager": "Johnson, Mike",
+  "period": {
+    "label": "4 weeks",
+    "from": "Mar 1, 2026",
+    "to": "Mar 28, 2026",
+    "days": 28
+  },
+  "goals": {
+    "sp_d": 250,
+    "cust": 40,
+    "sp_n": 6.0
+  },
+  "doubleMetrics": {
+    "standard": {
+      "cust": 70,
+      "sp_n": 6,
+      "sp_d": 300
+    },
+    "elite": {
+      "cust": 105,
+      "sp_n": 9,
+      "sp_d": 450
+    }
+  },
+  "formula": {
+    "spd_mult": 0.02,
+    "spd_weight": 1.0,
+    "cust_mult": 0.0857,
+    "cust_weight": 2.0,
+    "spn_weight": 0.5
+  },
+  "employees": [
+    {
+      "id": 1,
+      "name": "Chen, Amy",
+      "initials": "AC",
+      "trifectas": [
+        {
+          "date": "Mar 4",
+          "tier": 3,
+          "sp_d": 320,
+          "cust": 47,
+          "sp_n": 7.8
+        },
+        {
+          "date": "Mar 6",
+          "tier": 2,
+          "sp_d": 278,
+          "cust": 44,
+          "sp_n": 6.5
+        },
+        {
+          "date": "Mar 9",
+          "tier": 4,
+          "sp_d": 395,
+          "cust": 58,
+          "sp_n": 9.2
+        },
+        {
+          "date": "Mar 13",
+          "tier": 2,
+          "sp_d": 265,
+          "cust": 42,
+          "sp_n": 6.2
+        },
+        {
+          "date": "Mar 22",
+          "tier": 5,
+          "sp_d": 310,
+          "cust": 71,
+          "sp_n": 6.4
+        },
+        {
+          "date": "Mar 23",
+          "tier": 3,
+          "sp_d": 335,
+          "cust": 49,
+          "sp_n": 8.1
+        },
+        {
+          "date": "Mar 26",
+          "tier": 2,
+          "sp_d": 261,
+          "cust": 43,
+          "sp_n": 6.3
+        },
+        {
+          "date": "Mar 27",
+          "tier": 4,
+          "sp_d": 388,
+          "cust": 55,
+          "sp_n": 8.9
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Jones, Lisa",
+      "initials": "LJ",
+      "trifectas": [
+        {
+          "date": "Mar 4",
+          "tier": 2,
+          "sp_d": 262,
+          "cust": 43,
+          "sp_n": 6.4
+        },
+        {
+          "date": "Mar 9",
+          "tier": 3,
+          "sp_d": 318,
+          "cust": 46,
+          "sp_n": 7.5
+        },
+        {
+          "date": "Mar 13",
+          "tier": 2,
+          "sp_d": 255,
+          "cust": 41,
+          "sp_n": 6.1
+        },
+        {
+          "date": "Mar 22",
+          "tier": 3,
+          "sp_d": 329,
+          "cust": 48,
+          "sp_n": 7.9
+        },
+        {
+          "date": "Mar 24",
+          "tier": 2,
+          "sp_d": 258,
+          "cust": 42,
+          "sp_n": 6.3
+        },
+        {
+          "date": "Mar 27",
+          "tier": 4,
+          "sp_d": 381,
+          "cust": 54,
+          "sp_n": 8.6
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Smith, John",
+      "initials": "JS",
+      "trifectas": [
+        {
+          "date": "Mar 4",
+          "tier": 1,
+          "sp_d": 253,
+          "cust": 41,
+          "sp_n": 6.1
+        },
+        {
+          "date": "Mar 6",
+          "tier": 2,
+          "sp_d": 271,
+          "cust": 43,
+          "sp_n": 6.7
+        },
+        {
+          "date": "Mar 22",
+          "tier": 2,
+          "sp_d": 268,
+          "cust": 44,
+          "sp_n": 6.5
+        },
+        {
+          "date": "Mar 23",
+          "tier": 3,
+          "sp_d": 312,
+          "cust": 46,
+          "sp_n": 7.4
+        },
+        {
+          "date": "Mar 26",
+          "tier": 1,
+          "sp_d": 252,
+          "cust": 41,
+          "sp_n": 6.0
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Nguyen, Kevin",
+      "initials": "KN",
+      "trifectas": [
+        {
+          "date": "Mar 9",
+          "tier": 2,
+          "sp_d": 274,
+          "cust": 44,
+          "sp_n": 6.8
+        },
+        {
+          "date": "Mar 13",
+          "tier": 1,
+          "sp_d": 251,
+          "cust": 40,
+          "sp_n": 6.0
+        },
+        {
+          "date": "Mar 22",
+          "tier": 2,
+          "sp_d": 269,
+          "cust": 43,
+          "sp_n": 6.6
+        },
+        {
+          "date": "Mar 27",
+          "tier": 3,
+          "sp_d": 308,
+          "cust": 47,
+          "sp_n": 7.3
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Park, David",
+      "initials": "DP",
+      "trifectas": [
+        {
+          "date": "Mar 6",
+          "tier": 1,
+          "sp_d": 252,
+          "cust": 41,
+          "sp_n": 6.1
+        },
+        {
+          "date": "Mar 22",
+          "tier": 2,
+          "sp_d": 272,
+          "cust": 43,
+          "sp_n": 6.7
+        },
+        {
+          "date": "Mar 23",
+          "tier": 1,
+          "sp_d": 254,
+          "cust": 41,
+          "sp_n": 6.2
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Davis, Rachel",
+      "initials": "RD",
+      "trifectas": [
+        {
+          "date": "Mar 9",
+          "tier": 1,
+          "sp_d": 253,
+          "cust": 41,
+          "sp_n": 6.1
+        },
+        {
+          "date": "Mar 22",
+          "tier": 2,
+          "sp_d": 266,
+          "cust": 42,
+          "sp_n": 6.4
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Kim, James",
+      "initials": "JK",
+      "trifectas": [
+        {
+          "date": "Mar 22",
+          "tier": 1,
+          "sp_d": 251,
+          "cust": 40,
+          "sp_n": 6.0
+        },
+        {
+          "date": "Mar 27",
+          "tier": 2,
+          "sp_d": 263,
+          "cust": 42,
+          "sp_n": 6.5
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Lee, Michael",
+      "initials": "ML",
+      "trifectas": [
+        {
+          "date": "Mar 23",
+          "tier": 1,
+          "sp_d": 252,
+          "cust": 41,
+          "sp_n": 6.1
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Wilson, Tom",
+      "initials": "WT",
+      "trifectas": []
+    },
+    {
+      "id": 10,
+      "name": "Brown, Sarah",
+      "initials": "SB",
+      "trifectas": []
+    },
+    {
+      "id": 11,
+      "name": "Nguyen, Paul",
+      "initials": "PN",
+      "trifectas": []
+    },
+    {
+      "id": 12,
+      "name": "Harris, Dana",
+      "initials": "DH",
+      "trifectas": []
+    }
+  ],
+  "giftCards": [
+    {
+      "id": "gc1",
+      "employeeId": 1,
+      "name": "Chen, Amy",
+      "tag": "CAMY141GS",
+      "date": "Mar 9",
+      "tier": 4,
+      "amount": 25,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "",
+      "status": "pending"
+    },
+    {
+      "id": "gc2",
+      "employeeId": 1,
+      "name": "Chen, Amy",
+      "tag": "CAMY141GS",
+      "date": "Mar 22",
+      "tier": 5,
+      "amount": 50,
+      "manuallyAdded": false,
+      "doubleGc": true,
+      "note": "Double metrics \u2014 71 cust",
+      "status": "pending"
+    },
+    {
+      "id": "gc3",
+      "employeeId": 1,
+      "name": "Chen, Amy",
+      "tag": "CAMY141GS",
+      "date": "Mar 27",
+      "tier": 4,
+      "amount": 25,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "",
+      "status": "pending"
+    },
+    {
+      "id": "gc4",
+      "employeeId": 2,
+      "name": "Jones, Lisa",
+      "tag": "LJON141GS",
+      "date": "Mar 27",
+      "tier": 4,
+      "amount": 25,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "",
+      "status": "pending"
+    },
+    {
+      "id": "gc5",
+      "employeeId": 2,
+      "name": "Jones, Lisa",
+      "tag": "LJON141GS",
+      "date": "Mar 22",
+      "tier": 3,
+      "amount": 15,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "",
+      "status": "pending"
+    },
+    {
+      "id": "gc6",
+      "employeeId": 3,
+      "name": "Smith, John",
+      "tag": "JSMI141GS",
+      "date": "Mar 23",
+      "tier": 3,
+      "amount": 15,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "Great week",
+      "status": "pending"
+    },
+    {
+      "id": "gc7",
+      "employeeId": 1,
+      "name": "Chen, Amy",
+      "tag": "CAMY141GS",
+      "date": "Mar 4",
+      "tier": 3,
+      "amount": 15,
+      "manuallyAdded": true,
+      "doubleGc": false,
+      "note": "Manually added by mgr",
+      "status": "fulfilled"
+    },
+    {
+      "id": "gc8",
+      "employeeId": 4,
+      "name": "Nguyen, Kevin",
+      "tag": "KNGU141GS",
+      "date": "Mar 27",
+      "tier": 3,
+      "amount": 15,
+      "manuallyAdded": false,
+      "doubleGc": false,
+      "note": "",
+      "status": "pending"
+    }
+  ],
+  "heatmap": [
+    {
+      "date": "Mar 1",
+      "day": "Sun",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 2",
+      "day": "Mon",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 3",
+      "day": "Tue",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 4",
+      "day": "Wed",
+      "count": 3,
+      "maxTier": 3
+    },
+    {
+      "date": "Mar 5",
+      "day": "Thu",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 6",
+      "day": "Fri",
+      "count": 2,
+      "maxTier": 2
+    },
+    {
+      "date": "Mar 7",
+      "day": "Sat",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 8",
+      "day": "Sun",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 9",
+      "day": "Mon",
+      "count": 4,
+      "maxTier": 4
+    },
+    {
+      "date": "Mar 10",
+      "day": "Tue",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 11",
+      "day": "Wed",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 12",
+      "day": "Thu",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 13",
+      "day": "Fri",
+      "count": 2,
+      "maxTier": 2
+    },
+    {
+      "date": "Mar 14",
+      "day": "Sat",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 15",
+      "day": "Sun",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 16",
+      "day": "Mon",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 17",
+      "day": "Tue",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 18",
+      "day": "Wed",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 19",
+      "day": "Thu",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 20",
+      "day": "Fri",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 21",
+      "day": "Sat",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 22",
+      "day": "Sun",
+      "count": 7,
+      "maxTier": 5,
+      "hasSuperFecta": true
+    },
+    {
+      "date": "Mar 23",
+      "day": "Mon",
+      "count": 4,
+      "maxTier": 3
+    },
+    {
+      "date": "Mar 24",
+      "day": "Tue",
+      "count": 1,
+      "maxTier": 2
+    },
+    {
+      "date": "Mar 25",
+      "day": "Wed",
+      "count": 0,
+      "maxTier": 0
+    },
+    {
+      "date": "Mar 26",
+      "day": "Thu",
+      "count": 2,
+      "maxTier": 2
+    },
+    {
+      "date": "Mar 27",
+      "day": "Fri",
+      "count": 4,
+      "maxTier": 4
+    },
+    {
+      "date": "Mar 28",
+      "day": "Sat",
+      "count": 0,
+      "maxTier": 0
+    }
+  ]
+};
+</script>
+<style>
+:root {
+  --ink:#0B1220; --ink-md:#1E2D45;
+  --blue:#1652E8; --blue-lt:#E3EEFE; --blue-dim:#A9C3FB;
+  --red:#B91C1C; --red-bg:#FEE2E2; --red-dim:#FCA5A5;
+  --green:#059669; --green-bg:#D1FAE5; --green-dk:#065F34; --green-dim:#6EE7B7;
+  --amber:#D97706; --amber-bg:#FEF3C7; --amber-dim:#FDE68A;
+  --sl:#64748B; --sl-lt:#94A3B8; --sl-dim:#CBD5E1; --sl-bg:#F1F5F9;
+  --wh:#FFFFFF; --page:#E8EEF7;
+  --sbw:210px; --snw:158px; --tbh:50px;
+  --r4:4px; --r8:8px; --r10:10px; --r14:14px;
+  --s1:0 1px 3px rgba(11,18,32,.09),0 1px 2px rgba(11,18,32,.05);
+  --s3:0 8px 28px rgba(11,18,32,.13),0 2px 6px rgba(11,18,32,.07);
+}
+@keyframes silverShine {
+  0%   { background-position:200% center; }
+  100% { background-position:-200% center; }
+}
+@keyframes goldShine {
+  0%   { background-position:200% center; }
+  100% { background-position:-200% center; }
+}
+@keyframes diamondShine {
+  0%   { background-position:200% center; }
+  100% { background-position:-200% center; }
+}
+@keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+
+/* ── Base ─────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'DM Sans',sans-serif;font-size:13px;background:var(--page);color:var(--ink);line-height:1.5;}
+.screen{padding:32px;}
+.slbl{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--blue);letter-spacing:.10em;text-transform:uppercase;background:var(--blue-lt);border:1px solid var(--blue-dim);display:inline-block;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.app{width:100%;border-radius:var(--r14);overflow:hidden;box-shadow:var(--s3),0 0 0 1px rgba(11,18,32,.10);display:flex;flex-direction:column;height:960px;background:var(--wh);}
+.chrome{height:38px;background:var(--ink);display:flex;align-items:center;padding:0 14px;flex-shrink:0;}
+.cdots{display:flex;gap:7px;}.cdot{width:12px;height:12px;border-radius:50%;}
+.cdr{background:#FF5F57;}.cdy{background:#FEBC2E;}.cdg{background:#28C840;}
+.ctitle{flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.06em;}
+.cspace{width:72px;}
+.shell{flex:1;display:flex;overflow:hidden;}
+/* sidebar */
+.gsb{width:var(--sbw);background:var(--ink-md);display:flex;flex-direction:column;flex-shrink:0;}
+.gsb-brand{height:var(--tbh);padding:0 15px;display:flex;align-items:center;gap:9px;border-bottom:1px solid rgba(255,255,255,.07);}
+.gsb-icon{width:28px;height:28px;border-radius:var(--r8);background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gsb-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gsb-sub{font-size:10px;color:rgba(255,255,255,.38);}
+.gsb-nav{flex:1;padding:7px 0;overflow-y:auto;}
+.gsb-sec{font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:rgba(255,255,255,.25);padding:11px 15px 3px;}
+.gsb-item{display:flex;align-items:center;gap:8px;padding:7px 15px;font-size:12px;font-weight:500;color:rgba(255,255,255,.42);cursor:pointer;white-space:nowrap;}
+.gsb-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.72);}
+.gsb-item.on{background:rgba(22,82,232,.28);color:#fff;border-right:2.5px solid #7BA2F8;}
+.gsb-ico{font-size:12px;width:15px;text-align:center;flex-shrink:0;}
+.gsb-foot{padding:9px 15px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;color:rgba(255,255,255,.25);}
+/* sub-nav */
+.an-shell{flex:1;display:flex;overflow:hidden;min-width:0;}
+.sn{width:var(--snw);background:var(--sl-bg);border-right:1px solid var(--sl-dim);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;}
+.sn-hdr{height:var(--tbh);padding:0 13px;display:flex;align-items:center;border-bottom:1px solid var(--sl-dim);font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--sl);letter-spacing:.09em;text-transform:uppercase;}
+.sn-body{flex:1;padding:6px 0;overflow-y:auto;}
+.sn-grp{font-size:9px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--sl-lt);padding:9px 12px 3px;}
+.sn-item{display:flex;align-items:center;gap:7px;padding:6px 12px;font-size:11px;font-weight:500;color:var(--sl);cursor:pointer;border-left:2px solid transparent;white-space:nowrap;}
+.sn-item:hover{background:var(--blue-lt);color:var(--blue);}
+.sn-item.on{background:var(--blue-lt);color:var(--blue);border-left-color:var(--blue);font-weight:600;}
+.sn-ico{font-size:11px;width:13px;text-align:center;flex-shrink:0;}
+/* main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.topbar{height:var(--tbh);background:var(--wh);border-bottom:1px solid var(--sl-dim);display:flex;align-items:center;gap:10px;padding:0 18px;flex-shrink:0;}
+.tb-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;}
+.tb-sep{width:1px;height:18px;background:var(--sl-dim);flex-shrink:0;}
+.tb-r{margin-left:auto;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.pbar{display:flex;align-items:center;gap:3px;background:var(--sl-bg);border:1px solid var(--sl-dim);border-radius:22px;padding:3px;}
+.pnav{width:22px;height:22px;border-radius:50%;background:var(--wh);border:1px solid var(--sl-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--sl);flex-shrink:0;}
+.pdate{font-family:'DM Mono',monospace;font-size:10px;color:var(--blue);background:var(--blue-lt);border:1px solid var(--blue-dim);border-radius:var(--r4);padding:2px 8px;flex-shrink:0;white-space:nowrap;}
+.ppills{display:flex;gap:0;}
+.pp{padding:3px 7px;font-size:10px;font-weight:500;border-radius:13px;cursor:pointer;color:var(--sl);background:transparent;border:none;white-space:nowrap;font-family:'DM Sans',sans-serif;}
+.pp:hover{background:var(--wh);}.pp.on{background:var(--blue);color:#fff;font-weight:600;}
+.pp.rec{color:var(--green-dk);border:1px solid var(--green-dim);background:rgba(5,150,105,.08);font-weight:600;}
+.pdiv{width:1px;height:13px;background:var(--sl-dim);margin:0 2px;align-self:center;}
+.btn-b{background:var(--blue);border:1px solid #1d4ed8;border-radius:var(--r4);padding:5px 14px;font-size:11px;font-weight:600;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r4);padding:4px 12px;font-size:11px;cursor:pointer;color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:500;}
+/* content */
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:var(--sl-dim);border-radius:2px;}
+/* stat cards */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+.stat-card{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);padding:12px 14px;box-shadow:var(--s1);display:flex;flex-direction:column;gap:3px;}
+.stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sl);}
+.stat-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--ink);line-height:1;}
+.stat-sub{font-size:9px;color:var(--sl-lt);}
+/* panel */
+.cp{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);padding:14px 16px;box-shadow:var(--s1);}
+.cp-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.cp-sub{font-size:10px;color:var(--sl);margin-bottom:10px;}
+/* censor btn */
+.censor-btn{font-size:9px;padding:2px 7px;border-radius:10px;cursor:pointer;border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--sl);font-family:'DM Sans',sans-serif;font-weight:600;user-select:none;white-space:nowrap;transition:background .15s;}
+.censor-btn.glowing{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+/* top performers */
+.perf-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--sl-bg);}
+.perf-row:last-child{border-bottom:none;}
+.pr-init{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'DM Mono',monospace;background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-dim);flex-shrink:0;}
+.pr-name{font-size:11px;font-weight:600;color:var(--ink);flex:1;}
+.pr-count{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--blue);}
+/* leaderboard table */
+.lb-wrap{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);overflow:hidden;box-shadow:var(--s1);}
+.lb-toolbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--sl-dim);background:var(--sl-bg);}
+.lb-tb-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);flex:1;}
+.gear-btn{width:28px;height:28px;border-radius:var(--r4);border:1px solid var(--sl-dim);background:var(--wh);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:background .15s;}
+.gear-btn:hover{background:var(--blue-lt);}
+.gear-btn.on{background:var(--blue-lt);border-color:var(--blue-dim);}
+.btn-export-sm{background:var(--green-bg);border:1px solid var(--green-dim);border-radius:var(--r4);padding:4px 10px;font-size:10px;font-weight:600;color:var(--green-dk);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.formula-editor{padding:10px 16px;background:var(--blue-lt);border-bottom:1px solid var(--blue-dim);font-size:10px;}
+.fe-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.fe-lbl{color:var(--sl);flex:1;}
+.fe-inp{border:1.5px solid var(--blue-dim);border-radius:var(--r4);padding:3px 7px;font-size:11px;font-weight:700;color:var(--blue);background:var(--wh);width:70px;text-align:right;font-family:'DM Mono',monospace;}
+.fe-inp:focus{outline:none;border-color:var(--blue);}
+.fe-formula{font-family:'DM Mono',monospace;font-size:9px;color:var(--blue);background:rgba(22,82,232,.06);padding:6px 10px;border-radius:var(--r4);margin-top:6px;}
+table.lb-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+table.lb-tbl thead tr{background:var(--blue);}
+table.lb-tbl th{color:#fff;padding:7px 12px;text-align:left;font-weight:600;font-size:10px;white-space:nowrap;}
+table.lb-tbl td{border-bottom:1px solid var(--sl-bg);padding:7px 12px;vertical-align:middle;white-space:nowrap;transition:background .2s;}
+table.lb-tbl tr:last-child td{border-bottom:none;}
+table.lb-tbl td.num{font-family:'DM Mono',monospace;font-weight:700;text-align:right;}
+.lb-scroll{max-height:480px;overflow-y:auto;}
+.lb-scroll::-webkit-scrollbar{width:4px;}
+.lb-scroll::-webkit-scrollbar-thumb{background:var(--sl-dim);border-radius:2px;}
+/* gift card section */
+.gc-section{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);box-shadow:var(--s1);overflow:hidden;position:relative;}
+.gc-toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--sl-dim);background:var(--sl-bg);flex-wrap:wrap;}
+.gc-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);flex:1;}
+.gc-status-pill{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.gc-status-pill.pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-dim);}
+.gc-status-pill.all-clear{background:var(--green-bg);color:var(--green-dk);border:1px solid var(--green-dim);}
+.btn-sel{font-size:10px;padding:4px 10px;background:var(--sl-bg);border:1px solid var(--sl-dim);border-radius:var(--r4);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--sl);}
+.btn-sel:hover{background:var(--blue-lt);color:var(--blue);}
+.btn-print{background:var(--blue);border:1px solid #1d4ed8;border-radius:var(--r4);padding:5px 12px;font-size:11px;font-weight:600;color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-print:disabled{opacity:.4;cursor:not-allowed;}
+table.gc-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+table.gc-tbl thead tr{background:var(--ink-md);}
+table.gc-tbl th{color:rgba(255,255,255,.8);padding:7px 12px;text-align:left;font-weight:600;font-size:10px;white-space:nowrap;}
+table.gc-tbl td{border-bottom:1px solid var(--sl-bg);padding:7px 12px;vertical-align:middle;}
+table.gc-tbl tr:last-child td{border-bottom:none;}
+table.gc-tbl tr:hover td{background:var(--sl-bg);}
+table.gc-tbl tr.selected td{background:var(--blue-lt);}
+.gc-tag{font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:var(--ink-md);}
+.gc-amount{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--green-dk);}
+.gc-note-inp{border:1px solid var(--sl-dim);border-radius:3px;padding:2px 6px;font-size:10px;background:var(--wh);color:var(--ink);font-family:'DM Sans',sans-serif;width:130px;}
+.gc-note-inp:focus{outline:none;border-color:var(--blue);}
+/* overlay */
+.gc-blur-overlay{
+  position:absolute;inset:0;backdrop-filter:blur(7px);
+  background:rgba(255,255,255,.55);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;z-index:20;border-radius:var(--r10);
+}
+.overlay-big-btn{
+  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;
+  padding:14px 32px;border-radius:var(--r10);border:none;cursor:pointer;
+  background-size:200% auto;user-select:none;min-width:280px;text-align:center;
+}
+.overlay-small-btn{
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:9px 16px;border-radius:var(--r8);cursor:pointer;
+  min-width:280px;text-align:center;
+}
+/* audit log */
+.audit-acc{border-top:1px solid var(--sl-dim);}
+.audit-hdr{display:flex;align-items:center;gap:8px;padding:10px 16px;cursor:pointer;background:var(--sl-bg);}
+.audit-hdr:hover{background:var(--sl-dim);}
+.audit-body{padding:12px 16px;position:relative;}
+.audit-blur{filter:blur(6px);user-select:none;pointer-events:none;}
+.pin-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(241,245,249,.7);}
+.pin-inp{border:2px solid var(--sl-dim);border-radius:var(--r8);padding:8px 14px;font-size:16px;font-weight:700;font-family:'DM Mono',monospace;text-align:center;width:160px;letter-spacing:.2em;}
+.pin-inp:focus{outline:none;border-color:var(--blue);}
+table.audit-tbl{width:100%;border-collapse:collapse;font-size:10px;}
+table.audit-tbl th{text-align:left;padding:5px 10px;background:var(--sl-bg);font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--sl);}
+table.audit-tbl td{padding:5px 10px;border-bottom:1px solid var(--sl-bg);vertical-align:top;}
+table.audit-tbl tr:last-child td{border-bottom:none;}
+/* heatmap */
+.hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px;}
+.hm-day-hdr{font-size:8px;font-weight:700;text-align:center;color:var(--sl-lt);letter-spacing:.06em;padding-bottom:3px;}
+.hm-cell{aspect-ratio:1;border-radius:var(--r4);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:8px;font-weight:700;cursor:default;}
+.hm-cell .hm-date{font-size:7px;opacity:.7;}
+.hm-cell .hm-count{font-size:9px;font-weight:700;}
+.hm-0{background:var(--sl-bg);color:var(--sl-lt);}
+.hm-1{background:var(--blue-lt);color:var(--blue);}
+.hm-2{background:var(--green-bg);color:var(--green-dk);}
+.hm-3{background:linear-gradient(135deg,#94A3B8,#E2E8F0,#F8FAFC,#E2E8F0,#94A3B8);background-size:200% auto;animation:silverShine 2.5s linear infinite;color:#334155;}
+.hm-4{background:linear-gradient(135deg,#D97706,#FCD34D,#FEF3C7,#FCD34D,#D97706);background-size:200% auto;animation:goldShine 2s linear infinite;color:#78350F;box-shadow:0 0 4px rgba(217,119,6,.3);}
+.hm-5{background:linear-gradient(135deg,#818CF8,#C7D2FE,#A5F3FC,#FDE68A,#A5F3FC,#C7D2FE,#818CF8);background-size:200% auto;animation:diamondShine 1.8s linear infinite;color:#1e1b4b;box-shadow:0 0 6px rgba(129,140,248,.4);}
+.hm-legend{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.hm-leg-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--sl);}
+.hm-leg-sw{width:12px;height:12px;border-radius:2px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="slbl">Trifecta &middot; Store 141</div>
+  <div class="app" id="app-root"></div>
+</div>
+<script>
+// ================================================================
+// STATE
+// ================================================================
+let activeSubView     = 'overview';  // 'overview' | 'export'
+let namesVisible      = false;       // top performers rank 6+ blur
+let lbNamesVisible    = false;       // leaderboard rank 6+ blur
+let lbHoldTimer       = null;       // top performers rank 6+ blur toggle
+let holdTimer         = null;
+
+let selectedGcIds     = new Set();   // checked gift card rows
+// gcOverlayState: null | 'selecting' | 'csv_done' | 'pdf_hold'
+let gcOverlayState    = null;
+let showFormulaEditor = false;
+let auditOpen         = false;
+
+// ── Audit log ─────────────────────────────────────────────────
+// Each entry: { ts, type, detail }
+// Types: 'export_csv' | 'export_pdf' | 'manual_add' | 'manual_remove'
+//        | 'note_edit' | 'archive' | 'pin_attempt'
+let auditLog = [];
+
+// ── PIN state ─────────────────────────────────────────────────
+// Stored in sessionStorage so it survives renderApp() but clears on close.
+const PIN_KEY = 'trifecta_pin';
+let pinState = {
+  unlocked:   false,
+  attempts:   0,      // failed attempts this session
+  locked:     false,  // locked after 3 fails — requires page reload
+  settingPin: false,  // true during first-use setup
+  confirmVal: '',     // first entry during setup
+};
+
+function getStoredPin() { try { return sessionStorage.getItem(PIN_KEY); } catch(e) { return null; } }
+function storePin(p)    { try { sessionStorage.setItem(PIN_KEY, p); } catch(e) {} }
+// addAudit: logs all exports, changes, and PIN attempts.
+// payload: optional extra data (e.g. full HTML of exported PDF)
+function addAudit(type, detail, payload) {
+  const ts = new Date().toLocaleString('en-US', {dateStyle:'short', timeStyle:'medium'});
+  auditLog.push({ ts, type, detail, payload: payload || null });
+}
+
+// ================================================================
+// HELPERS
+// ================================================================
+function calcScore(emp) {
+  const f = TRIFECTA_DATA.formula;
+  return emp.trifectas.reduce((sum, t) => {
+    return sum + (t.sp_d * f.spd_mult * f.spd_weight)
+               + (t.cust * f.cust_mult * f.cust_weight)
+               + (t.sp_n * f.spn_weight);
+  }, 0);
+}
+function bestTier(emp) {
+  return emp.trifectas.reduce((mx,t) => Math.max(mx, t.tier), 0);
+}
+
+// ================================================================
+// BUILD: Stat cards (overview)
+// ================================================================
+// ================================================================
+// BUILD: Overview stat cards (3 cards)
+//   Card 1: Total trifectas this period
+//   Card 2: Avg trifectas/day (total / period.days)
+//   Card 3: Gift cards pending — yellow bg if any pending, green if all clear
+// ================================================================
+function buildStatCards() {
+  const emps   = TRIFECTA_DATA.employees;
+  const total  = emps.reduce((s,e) => s + e.trifectas.length, 0);
+  const avgDay = (total / TRIFECTA_DATA.period.days).toFixed(2);
+  const pendGc = TRIFECTA_DATA.giftCards.filter(g => g.status !== 'fulfilled').length;
+  const pendStyle = pendGc > 0
+    ? 'background:var(--amber-bg);border-color:var(--amber-dim);'
+    : 'background:var(--green-bg);border-color:var(--green-dim);';
+  const pendValClr = pendGc > 0 ? 'var(--amber)' : 'var(--green-dk)';
+  return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px;">
+    <div class="stat-card">
+      <div class="stat-lbl">Total trifectas</div>
+      <div class="stat-val" style="color:var(--blue);">${total}</div>
+      <div class="stat-sub">${TRIFECTA_DATA.period.label}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">Avg trifectas / day</div>
+      <div class="stat-val">${avgDay}</div>
+      <div class="stat-sub">${TRIFECTA_DATA.period.days} days in period</div>
+    </div>
+    <div class="stat-card" style="${pendStyle}">
+      <div class="stat-lbl">Gift cards pending</div>
+      <div class="stat-val" style="color:${pendValClr};">${pendGc}</div>
+      <div class="stat-sub">$${pendGc * 10} total &middot; $10 each</div>
+    </div>
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Top performers — uncensored top 5, rank 6+ blurred
+// ================================================================
+function buildTopPerformers() {
+  const emps = TRIFECTA_DATA.employees
+    .filter(e => e.trifectas.length > 0)
+    .sort((a,b) => b.trifectas.length - a.trifectas.length);
+
+  const rows = emps.map((e,i) => {
+    const rankClr = i===0?'var(--gold)' : i===1?'var(--sl)' : i===2?'var(--amber)' : 'var(--sl-lt)';
+    const censor  = !namesVisible && i >= 5;
+    const nBlur   = censor ? 'style="filter:blur(4px);user-select:none;"' : '';
+    const iBlur   = censor ? 'style="filter:blur(3px);"' : '';
+    return `<div class="perf-row">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;width:16px;color:${rankClr};">${i+1}</div>
+      <div class="pr-init" ${iBlur}>${e.initials}</div>
+      <div class="pr-name" ${nBlur}>${e.name}</div>
+      <div class="pr-count">${e.trifectas.length}</div>
+      <div style="font-size:9px;color:var(--sl-lt);margin-left:2px;">trifectas</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="cp" style="overflow-y:auto;max-height:520px;">
+    <div class="cp-title" style="justify-content:space-between;">
+      <span>&#11088; Top performers</span>
+      <button class="censor-btn" id="perf-censor-btn"
+        title="Hold 3s to reveal/hide names below top 5"
+        onmousedown="startReveal()" onmouseup="cancelReveal()" onmouseleave="cancelReveal()"
+        ontouchstart="startReveal()" ontouchend="cancelReveal()">
+        ${namesVisible ? '&#128065; Hide' : '&#128274; Hold 3s'}
+      </button>
+    </div>
+    ${rows || '<div style="font-size:10px;color:var(--sl-lt);">No trifectas this period.</div>'}
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Leaderboard
+// Top 1 row = gold shimmer bg, top 2 = silver shimmer bg,
+// rank 3 = static bronze warm bg.
+// Columns: rank, name, count, avg SP$, avg Cust#, avg SP#.
+// Score NOT shown. Gear icon opens formula editor (hidden by default).
+// ================================================================
+function buildLeaderboard() {
+  const f    = TRIFECTA_DATA.formula;
+  const emps = TRIFECTA_DATA.employees
+    .filter(e => e.trifectas.length > 0)
+    .map(e => {
+      const n = e.trifectas.length;
+      return { ...e, score: calcScore(e),
+        avgSpd:  n ? (e.trifectas.reduce((s,t)=>s+t.sp_d, 0)/n).toFixed(0)  : '—',
+        avgCust: n ? (e.trifectas.reduce((s,t)=>s+t.cust, 0)/n).toFixed(1)  : '—',
+        avgSpn:  n ? (e.trifectas.reduce((s,t)=>s+t.sp_n, 0)/n).toFixed(1)  : '—',
+      };
+    })
+    .sort((a,b) => b.score - a.score);
+
+  const formulaEditor = showFormulaEditor ? `<div class="formula-editor">
+    <div style="font-size:10px;font-weight:700;color:var(--blue);margin-bottom:8px;">&#9881; Formula weights (hidden from table)</div>
+    <div class="fe-row"><span class="fe-lbl">SP$ multiplier &times; weight</span>
+      <input class="fe-inp" id="fe-spd-mult"  value="${f.spd_mult}"   type="number" step="0.01" min="0"/>
+      &times;<input class="fe-inp" id="fe-spd-wt" value="${f.spd_weight}" type="number" step="0.1" min="0"/>
+    </div>
+    <div class="fe-row"><span class="fe-lbl">Cust# multiplier &times; weight</span>
+      <input class="fe-inp" id="fe-cust-mult" value="${f.cust_mult}"  type="number" step="0.001" min="0"/>
+      &times;<input class="fe-inp" id="fe-cust-wt" value="${f.cust_weight}" type="number" step="0.1" min="0"/>
+    </div>
+    <div class="fe-row"><span class="fe-lbl">SP# weight</span>
+      <input class="fe-inp" id="fe-spn-wt"   value="${f.spn_weight}" type="number" step="0.1" min="0"/>
+    </div>
+    <div class="fe-formula">score = (SP$ &times; ${f.spd_mult} &times; ${f.spd_weight}) + (Cust# &times; ${f.cust_mult} &times; ${f.cust_weight}) + (SP# &times; ${f.spn_weight})</div>
+    <div style="display:flex;gap:7px;margin-top:8px;">
+      <button class="btn" style="font-size:10px;" onclick="resetFormula()">Reset</button>
+      <button class="btn-b" style="font-size:10px;" onclick="saveFormula()">Apply</button>
+    </div>
+  </div>` : '';
+
+  const rows = emps.map((e,i) => {
+    const rankStr  = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+    const rowBg = i===0
+      ? 'background:linear-gradient(90deg,rgba(249,168,37,.15),rgba(252,211,77,.22),rgba(249,168,37,.15));background-size:200% auto;animation:goldShine 2s linear infinite;'
+      : i===1
+      ? 'background:linear-gradient(90deg,rgba(148,163,184,.12),rgba(226,232,240,.22),rgba(148,163,184,.12));background-size:200% auto;animation:silverShine 2.5s linear infinite;'
+      : i===2
+      ? 'background:linear-gradient(90deg,rgba(180,83,9,.07),rgba(217,119,6,.11),rgba(251,191,36,.08));'
+      : '';
+    // Censor names/initials for ranks beyond 5
+    const lbCensor   = !lbNamesVisible && i >= 5;
+    // Blur entire row content for ranks 6+ (name + all metrics)
+    const rowBlurStyle = lbCensor ? 'filter:blur(4px);user-select:none;' : '';
+    return `<tr style="${rowBg}">
+      <td style="text-align:center;font-size:12px;">${rankStr}</td>
+      <td style="font-weight:600;${rowBlurStyle}">
+        ${e.name}
+        ${e.trifectas.some(t=>t.tier===5) ? `<span style="
+          font-size:8px;font-weight:700;letter-spacing:.04em;margin-left:6px;
+          background:linear-gradient(90deg,#818CF8,#C7D2FE,#A5F3FC,#FDE68A,#A5F3FC,#C7D2FE,#818CF8);
+          background-size:200% auto;animation:diamondShine 1.8s linear infinite;
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          SUPERFECTA ×${e.trifectas.filter(t=>t.tier===5).length}
+        </span>` : ''}
+      </td>
+      <td class="num" style="color:var(--ink);font-weight:500;${rowBlurStyle}">${e.trifectas.length}</td>
+      <td class="num" style="color:var(--ink);font-weight:400;${rowBlurStyle}">$${e.avgSpd}</td>
+      <td class="num" style="color:var(--ink);font-weight:400;${rowBlurStyle}">${e.avgCust}</td>
+      <td class="num" style="color:var(--ink);font-weight:400;${rowBlurStyle}">${e.avgSpn}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="lb-wrap">
+    <div class="lb-toolbar">
+      <div class="lb-tb-title">&#9638; Leaderboard &mdash; formula ranked</div>
+      <button class="censor-btn" id="lb-censor-btn"
+        title="Hold 3s to reveal/hide names below rank 5"
+        onmousedown="startLbReveal()" onmouseup="cancelLbReveal()" onmouseleave="cancelLbReveal()"
+        ontouchstart="startLbReveal()" ontouchend="cancelLbReveal()">
+        ${lbNamesVisible ? '&#128065; Hide' : '&#128274; Hold 3s'}
+      </button>
+      <button class="gear-btn ${showFormulaEditor?'on':''}" onclick="toggleFormulaEditor()" title="Edit formula">&#9881;</button>
+      <button class="btn-export-sm" onclick="exportLeaderboard()">&#8595; CSV</button>
+    </div>
+    ${formulaEditor}
+    <div class="lb-scroll">
+      <table class="lb-tbl">
+        <thead><tr>
+          <th style="text-align:center;width:36px;">#</th>
+          <th>Employee</th>
+          <th style="text-align:right;">Count</th>
+          <th style="text-align:right;">Avg SP$</th>
+          <th style="text-align:right;">Avg Cust</th>
+          <th style="text-align:right;">Avg SP#</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Gift card log
+//
+// gcOverlayState state machine:
+//   null        → normal table, Print Selected button active
+//   'selecting' → blur + 2 choice boxes: Export CSV | Print PDF
+//   'csv_done'  → blur + green shimmer "Export complete"
+//                 → after 2s fade → archive + danger buttons
+//   'pdf_hold'  → blur + blue shimmer hold-2s confirm button
+//                 → archive + danger buttons
+//
+// Dedup: same employee + same date → rejected on upload.
+// Notes: per-row editable. Logged in audit log.
+// All gift cards = $10 flat.
+// ================================================================
+function buildGiftCards() {
+  const pending = TRIFECTA_DATA.giftCards.filter(g => g.status !== 'fulfilled');
+  const selCount = selectedGcIds.size;
+
+  // ── overlay ───────────────────────────────────────────────────
+  let overlay = '';
+  if (gcOverlayState === 'selecting') {
+    overlay = `<div class="gc-blur-overlay">
+      <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">How would you like to export?</div>
+      <p style="font-size:10px;color:var(--sl);margin-bottom:14px;">${selCount} gift card${selCount!==1?'s':''} selected</p>
+      <div style="display:flex;gap:14px;">
+        <button onclick="doGcExport('csv')"
+          style="padding:14px 28px;border-radius:var(--r8);border:1px solid var(--green-dim);background:var(--green-bg);color:var(--green-dk);font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;min-width:160px;">
+          &#128196; Export CSV
+        </button>
+        <button onclick="doGcExport('pdf')"
+          style="padding:14px 28px;border-radius:var(--r8);border:1px solid var(--blue-dim);background:var(--blue-lt);color:var(--blue);font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;min-width:160px;">
+          &#128438; Print PDF
+        </button>
+      </div>
+      <button onclick="gcOverlayState=null;renderApp();" style="margin-top:10px;font-size:10px;color:var(--sl);background:none;border:none;cursor:pointer;text-decoration:underline;">Cancel</button>
+    </div>`;
+  } else if (gcOverlayState === 'csv_done') {
+    overlay = `<div class="gc-blur-overlay">
+      <button id="csv-done-btn" class="overlay-big-btn" style="
+          background:linear-gradient(90deg,#059669,#6EE7B7,#34D399,#6EE7B7,#059669);
+          background-size:200% auto;animation:goldShine 2s linear infinite;
+          color:#fff;box-shadow:0 4px 16px rgba(5,150,105,.4);">
+        &#10003; Export complete
+      </button>
+      <div id="archive-btns-csv" style="display:flex;flex-direction:column;gap:8px;opacity:0;transition:opacity .6s;min-width:280px;">
+        <button onmousedown="startArchiveHold()" onmouseup="cancelArchiveHold()" onmouseleave="cancelArchiveHold()"
+          class="overlay-small-btn" style="border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--ink);">
+          &#9741; Click &amp; hold to archive exported
+        </button>
+        <button onclick="gcOverlayState=null;renderApp();"
+          class="overlay-small-btn" style="border:1px solid var(--red-dim);background:var(--red-bg);color:var(--red);">
+          &#9888; Mark as still in progress
+        </button>
+      </div>
+    </div>`;
+    // Trigger fade: green button fades out, archive buttons fade in
+    setTimeout(() => {
+      const btn = document.getElementById('csv-done-btn');
+      const arc = document.getElementById('archive-btns-csv');
+      if (btn) { btn.style.transition='opacity 1s'; btn.style.opacity='0'; }
+      if (arc) arc.style.opacity = '1';
+    }, 2000);
+  } else if (gcOverlayState === 'pdf_hold') {
+    overlay = `<div class="gc-blur-overlay">
+      <button class="overlay-big-btn" id="confirm-done-btn"
+        onmousedown="startDoneHold()" onmouseup="cancelDoneHold()" onmouseleave="cancelDoneHold()"
+        ontouchstart="startDoneHold()" ontouchend="cancelDoneHold()"
+        style="background:linear-gradient(90deg,#1652E8,#60A5FA,#3B82F6,#60A5FA,#1652E8);
+               background-size:200% auto;animation:goldShine 2s linear infinite;
+               color:#fff;box-shadow:0 4px 16px rgba(22,82,232,.4);">
+        &#9888; Click &amp; hold if finished printing
+      </button>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:280px;">
+        <button onmousedown="startArchiveHold()" onmouseup="cancelArchiveHold()" onmouseleave="cancelArchiveHold()"
+          class="overlay-small-btn" style="border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--ink);">
+          &#9741; Click &amp; hold to archive exported
+        </button>
+        <button onclick="gcOverlayState=null;renderApp();"
+          class="overlay-small-btn" style="border:1px solid var(--red-dim);background:var(--red-bg);color:var(--red);">
+          &#9888; Mark as still in progress
+        </button>
+      </div>
+    </div>`;
+  }
+
+  if (!pending.length && gcOverlayState === null) {
+    return `<div class="gc-section">
+      <div class="gc-toolbar">
+        <div class="gc-title">&#127873; Gift card log</div>
+        <span class="gc-status-pill all-clear">&#10003; All caught up</span>
+      </div>
+      <div style="padding:24px;text-align:center;font-size:12px;color:var(--green-dk);font-weight:600;">All gift cards fulfilled &#127881;</div>
+      ${buildAuditLog()}
+    </div>`;
+  }
+
+  const rows = pending.map(gc => {
+    const isSel = selectedGcIds.has(gc.id);
+    const isIP  = gc.status === 'in_progress';
+    return `<tr class="${isSel?'selected':''}">
+      <td><input type="checkbox" ${isSel?'checked':''} onchange="toggleGcSel('${gc.id}')"/></td>
+      <td style="font-weight:600;">${gc.name}</td>
+      <td><span class="gc-tag">${gc.tag}</span></td>
+      <td class="gc-amount">$10</td>
+      <td style="font-size:10px;color:var(--sl);">${gc.date}</td>
+      <td><span style="font-size:9px;color:${isIP?'var(--amber)':'var(--sl-lt)'};font-weight:${isIP?700:400};">${isIP?'&#9201; In progress':'Pending'}</span></td>
+      <td><input class="gc-note-inp" value="${gc.note||''}" placeholder="Note…" onchange="updateGcNote('${gc.id}',this.value)"/></td>
+      <td><button style="font-size:10px;padding:2px 7px;border:1px solid var(--red-dim);background:var(--red-bg);color:var(--red);border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif;" onclick="removeGc('${gc.id}')">&#10005;</button></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="gc-section">
+    ${overlay}
+    <div class="gc-toolbar">
+      <div class="gc-title">&#127873; Gift card log</div>
+      <span class="gc-status-pill pending">${pending.length} pending</span>
+      <button class="btn-sel" onclick="selectAllGc()">Select all</button>
+      <button class="btn-sel" onclick="clearSelGc()" style="color:var(--red);">Clear</button>
+      <button class="btn-print"
+        onclick="startPrintFlow()"
+        ${selCount===0||gcOverlayState?'disabled':''}
+        title="${selCount} selected">
+        &#128438; Print selected (${selCount})
+      </button>
+    </div>
+    <div style="max-height:260px;overflow-y:auto;">
+      <table class="gc-tbl">
+        <thead><tr>
+          <th style="width:32px;"></th>
+          <th>Name</th><th>Tag</th><th>Amount</th>
+          <th>Date</th><th>Status</th><th>Note</th>
+          <th style="width:36px;"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${buildAuditLog()}
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Audit log accordion
+// Collapsed by default. Content blurred until PIN entered.
+// PIN is set on first use; 3 failed attempts → lock + audit note.
+// All attempts (including password) are logged.
+// ================================================================
+function buildAuditLog() {
+  if (!auditOpen) {
+    return `<div class="audit-acc">
+      <div class="audit-hdr" onclick="toggleAudit()">
+        <span style="font-size:11px;font-weight:700;color:var(--sl);flex:1;">&#128203; Edit log</span>
+        <span style="font-size:9px;color:var(--sl-lt);">${auditLog.length} entries &mdash; click to expand</span>
+        <span style="font-size:10px;color:var(--sl-lt);margin-left:8px;">&#9660;</span>
+      </div>
+    </div>`;
+  }
+
+  const storedPin = getStoredPin();
+  const pinSet    = !!storedPin;
+
+  // Log body
+  const logRows = auditLog.length === 0
+    ? '<tr><td colspan="3" style="text-align:center;color:var(--sl-lt);font-size:10px;">No entries yet.</td></tr>'
+    : [...auditLog].reverse().map(e => {
+        const pdfBtn = e.payload ? `<button onclick="viewAuditPdf(${auditLog.indexOf(e)})"
+          style="margin-left:8px;font-size:9px;padding:1px 7px;border:1px solid var(--blue-dim);background:var(--blue-lt);color:var(--blue);border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          &#128438; View PDF
+        </button>` : '';
+        return `<tr>
+          <td style="white-space:nowrap;color:var(--sl);">${e.ts}</td>
+          <td style="font-weight:600;">${e.type}</td>
+          <td>${e.detail}${pdfBtn}</td>
+        </tr>`;
+      }).join('');
+
+  const logContent = `<div class="audit-body">
+    <div ${!pinState.unlocked?'class="audit-blur"':''}>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:10px;font-weight:700;color:var(--sl);">All exports &amp; manual changes</span>
+        <button class="btn-export-sm" onclick="exportAuditCsv()">&#8595; Export CSV</button>
+      </div>
+      <table class="audit-tbl">
+        <thead><tr><th>Time</th><th>Type</th><th>Detail</th></tr></thead>
+        <tbody>${logRows}</tbody>
+      </table>
+    </div>
+    ${!pinState.unlocked ? buildPinOverlay(pinSet) : ''}
+  </div>`;
+
+  return `<div class="audit-acc">
+    <div class="audit-hdr" onclick="toggleAudit()">
+      <span style="font-size:11px;font-weight:700;color:var(--sl);flex:1;">&#128203; Edit log</span>
+      <span style="font-size:9px;color:var(--sl-lt);">${auditLog.length} entries</span>
+      <span style="font-size:10px;color:var(--sl-lt);margin-left:8px;">&#9650;</span>
+    </div>
+    ${logContent}
+  </div>`;
+}
+
+// ── PIN overlay (shown when audit is expanded but not unlocked) ──
+function buildPinOverlay(pinSet) {
+  if (pinState.locked) {
+    return `<div class="pin-overlay">
+      <div style="font-size:13px;font-weight:700;color:var(--red);">&#128274; Access locked</div>
+      <div style="font-size:10px;color:var(--sl);text-align:center;max-width:240px;">3 failed attempts. Reload the page to try again. Incident logged.</div>
+    </div>`;
+  }
+  const label = pinSet ? 'Enter PIN' : (pinState.settingPin && pinState.confirmVal ? 'Confirm PIN' : 'Set PIN');
+  const hint  = pinSet ? '' : (pinState.settingPin && pinState.confirmVal ? 'Re-enter your new PIN' : 'Create a PIN to protect the audit log');
+  return `<div class="pin-overlay">
+    <div style="font-size:12px;font-weight:700;color:var(--ink);">${label}</div>
+    ${hint ? `<div style="font-size:9px;color:var(--sl-lt);">${hint}</div>` : ''}
+    <input class="pin-inp" id="pin-inp" type="password" placeholder="&bull;&bull;&bull;&bull;"
+      maxlength="12" autocomplete="off"
+      onkeydown="if(event.key==='Enter')submitPin()"/>
+    <button class="btn-b" onclick="submitPin()" style="font-size:11px;padding:6px 18px;">
+      &#128275; Input PIN
+    </button>
+    ${pinState.attempts > 0 ? `<div style="font-size:10px;color:var(--red);">${3-pinState.attempts} attempt${3-pinState.attempts!==1?'s':''} remaining</div>` : ''}
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Heatmap
+// maxTier drives colour class; count>=2 shows "SUPERFECTA" shimmer
+// ================================================================
+function buildHeatmap() {
+  const days    = TRIFECTA_DATA.heatmap;
+  const startDow= new Date('2026-03-01').getDay();
+  const headers = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>
+    `<div class="hm-day-hdr">${d}</div>`).join('');
+  const blanks  = Array.from({length:startDow}, ()=>
+    '<div class="hm-cell hm-0" style="background:transparent;"></div>').join('');
+
+  const cells = days.map(day => {
+    const cls          = `hm-${day.maxTier}`;
+    // superfecta = an employee hit double metrics (Tier 5) that day
+    const isSuperfecta = !!(day.hasSuperFecta);
+    const countLabel   = day.count > 1 ? `x${day.count}` : (day.count===1 ? '1' : '');
+    const tip          = day.count>0
+      ? `${day.date}: ${day.count} trifecta${day.count>1?'s':''} — best tier ${day.maxTier}${isSuperfecta?' ✦ SUPERFECTA':''}`
+      : `${day.date}: no trifectas`;
+    const sfLabel = isSuperfecta ? `<div style="
+        font-size:6px;font-weight:700;letter-spacing:.04em;line-height:1;margin-bottom:1px;
+        background:linear-gradient(90deg,#818CF8,#C7D2FE,#A5F3FC,#FDE68A,#A5F3FC,#C7D2FE,#818CF8);
+        background-size:200% auto;animation:diamondShine 1.8s linear infinite;
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+      SUPERFECTA</div>` : '';
+    return `<div class="hm-cell ${cls}" title="${tip}">
+      ${sfLabel}
+      <div class="hm-date">${day.date.split(' ')[1]}</div>
+      <div class="hm-count">${countLabel}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="cp">
+    <div class="cp-title">&#128197; Daily trifecta heatmap</div>
+    <div class="cp-sub">Colour = best tier achieved that day &middot; number = employee count &middot; hover for detail</div>
+    <div class="hm-grid">${headers}${blanks}${cells}</div>
+    <div class="hm-legend">
+      <div class="hm-leg-item"><div class="hm-leg-sw hm-0"></div><span>None</span></div>
+      <div class="hm-leg-item"><div class="hm-leg-sw hm-1"></div><span>T1</span></div>
+      <div class="hm-leg-item"><div class="hm-leg-sw hm-2"></div><span>T2</span></div>
+      <div class="hm-leg-item"><div class="hm-leg-sw" style="background:linear-gradient(135deg,#94A3B8,#E2E8F0,#F8FAFC);border-radius:2px;"></div><span>T3 Silver</span></div>
+      <div class="hm-leg-item"><div class="hm-leg-sw" style="background:linear-gradient(135deg,#D97706,#FCD34D,#FEF3C7);border-radius:2px;"></div><span>T4 Gold</span></div>
+      <div class="hm-leg-item"><div class="hm-leg-sw" style="background:linear-gradient(135deg,#818CF8,#C7D2FE,#A5F3FC,#FDE68A);border-radius:2px;"></div><span>T5 Diamond</span></div>
+      <div class="hm-leg-item" style="margin-left:8px;"><span style="
+        background:linear-gradient(90deg,#818CF8,#C7D2FE,#A5F3FC,#FDE68A,#A5F3FC,#C7D2FE);
+        background-size:200% auto;animation:diamondShine 1.8s linear infinite;
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+        font-size:9px;font-weight:700;">SUPERFECTA</span><span style="font-size:9px;color:var(--sl);margin-left:4px;">= 2+ trifectas same day</span></div>
+    </div>
+  </div>`;
+}
+
+// ================================================================
+// BUILD: Export sub-tab
+// Only 3 stat cards + export action cards. No duplication.
+// ================================================================
+// ================================================================
+// BUILD: Export sub-tab
+// Only the gift card log table (with all batch/print/overlay features)
+// and the PIN-protected audit log below it. No extra cards or buttons.
+// ================================================================
+function buildExportView() {
+  return buildGiftCards();
+}
+
+// ================================================================
+// FULL RENDER
+// ================================================================
+function renderApp() {
+  const per = TRIFECTA_DATA.period;
+  document.getElementById('app-root').innerHTML = `
+    <div class="chrome">
+      <div class="cdots"><div class="cdot cdr"></div><div class="cdot cdy"></div><div class="cdot cdg"></div></div>
+      <div class="ctitle">GS Report Extractor &mdash; Store 141</div>
+      <div class="cspace"></div>
+    </div>
+    <div class="shell">
+      <div class="gsb">
+        <div class="gsb-brand">
+          <div class="gsb-icon"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="7" height="9" rx="1" fill="rgba(255,255,255,.7)"/><rect x="5" y="4" width="7" height="8" rx="1" fill="#fff"/></svg></div>
+          <div><div class="gsb-name">GS Extractor</div><div class="gsb-sub">Store 141</div></div>
+        </div>
+        <div class="gsb-nav">
+          <div class="gsb-sec">Reports</div>
+          <div class="gsb-item"><span class="gsb-ico">&#8593;</span>Extractor</div>
+          <div class="gsb-item"><span class="gsb-ico">&#128202;</span>Analytics</div>
+          <div class="gsb-item"><span class="gsb-ico">&#11088;</span>Points</div>
+          <div class="gsb-item"><span class="gsb-ico">&#8644;</span>Compare</div>
+          <div class="gsb-item on"><span class="gsb-ico">&#10022;</span>Trifecta</div>
+          <div class="gsb-sec">Data</div>
+          <div class="gsb-item"><span class="gsb-ico">&#128452;</span>Archive</div>
+        </div>
+        <div class="gsb-foot">Store 141 &middot; GS Dept</div>
+      </div>
+      <div class="an-shell">
+        <div class="sn">
+          <div class="sn-hdr">Trifecta</div>
+          <div class="sn-body">
+            <div class="sn-grp">Views</div>
+            <div class="sn-item ${activeSubView==='overview'?'on':''}" onclick="setSubView('overview')"><span class="sn-ico">&#10022;</span>Overview</div>
+            <div class="sn-item ${activeSubView==='export'?'on':''}" onclick="setSubView('export')"><span class="sn-ico">&#8595;</span>Export</div>
+            <div class="sn-grp">Period</div>
+            <div class="sn-item on"><span class="sn-ico" style="font-size:9px;">4w</span>4 weeks</div>
+            <div class="sn-item"><span class="sn-ico" style="font-size:9px;">8w</span>8 weeks</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="topbar">
+            <div class="tb-title">Trifecta &mdash; ${activeSubView==='export'?'Export':'Overview'}</div>
+            <div class="tb-sep"></div>
+            <div class="pbar">
+              <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
+              <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
+              <div class="ppills">
+                <button class="pp rec">Rec. Upload</button><div class="pdiv"></div>
+                <button class="pp">1w</button><button class="pp">2w</button>
+                <button class="pp on">4w</button><button class="pp">8w</button>
+                <button class="pp">12w</button>
+              </div>
+            </div>
+          </div>
+          <div class="content">
+            ${activeSubView==='export' ? buildExportView() : `
+              ${buildStatCards()}
+              <div style="display:grid;grid-template-columns:1fr 240px;gap:12px;align-items:start;">
+                ${buildLeaderboard()}
+                ${buildTopPerformers()}
+              </div>
+              ${buildGiftCards()}
+              ${buildHeatmap()}
+            `}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ================================================================
+// INTERACTIVITY
+// ================================================================
+
+function setSubView(v) { activeSubView = v; renderApp(); }
+
+// ── Hold-to-reveal (performers) ───────────────────────────────
+function startReveal() {
+  const btn = document.getElementById('perf-censor-btn');
+  if (btn) btn.classList.add('glowing');
+  holdTimer = setTimeout(() => { namesVisible = !namesVisible; renderApp(); }, 3000);
+}
+function cancelReveal() {
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  const btn = document.getElementById('perf-censor-btn');
+  if (btn) btn.classList.remove('glowing');
+}
+
+// ── Formula editor ────────────────────────────────────────────
+function toggleFormulaEditor() { showFormulaEditor = !showFormulaEditor; renderApp(); }
+function saveFormula() {
+  const f = TRIFECTA_DATA.formula;
+  f.spd_mult    = parseFloat(document.getElementById('fe-spd-mult').value)  || f.spd_mult;
+  f.spd_weight  = parseFloat(document.getElementById('fe-spd-wt').value)   || f.spd_weight;
+  f.cust_mult   = parseFloat(document.getElementById('fe-cust-mult').value) || f.cust_mult;
+  f.cust_weight = parseFloat(document.getElementById('fe-cust-wt').value)  || f.cust_weight;
+  f.spn_weight  = parseFloat(document.getElementById('fe-spn-wt').value)   || f.spn_weight;
+  showFormulaEditor = false;
+  addAudit('formula_change', `Weights updated: SP$×${f.spd_mult}×${f.spd_weight} + Cust×${f.cust_mult}×${f.cust_weight} + SP#×${f.spn_weight}`);
+  renderApp();
+}
+function resetFormula() {
+  TRIFECTA_DATA.formula = { spd_mult:0.02, spd_weight:1.0, cust_mult:0.0857, cust_weight:2.0, spn_weight:0.5 };
+  renderApp();
+}
+
+// ── Gift card interactions ────────────────────────────────────
+function toggleGcSel(id) {
+  if (selectedGcIds.has(id)) selectedGcIds.delete(id);
+  else selectedGcIds.add(id);
+  renderApp();
+}
+function selectAllGc() {
+  TRIFECTA_DATA.giftCards.filter(g=>g.status!=='fulfilled').forEach(g=>selectedGcIds.add(g.id));
+  renderApp();
+}
+function clearSelGc() { selectedGcIds.clear(); renderApp(); }
+function updateGcNote(id, val) {
+  const gc = TRIFECTA_DATA.giftCards.find(g=>g.id===id);
+  if (gc) { gc.note = val; addAudit('note_edit', `${gc.name} — note updated`); }
+}
+function removeGc(id) {
+  const gc = TRIFECTA_DATA.giftCards.find(g=>g.id===id);
+  if (gc) addAudit('manual_remove', `Removed: ${gc.name} (${gc.date}) $10`);
+  selectedGcIds.delete(id);
+  TRIFECTA_DATA.giftCards = TRIFECTA_DATA.giftCards.filter(g=>g.id!==id);
+  renderApp();
+}
+
+// Start print flow — show selecting overlay
+function startPrintFlow() {
+  if (selectedGcIds.size === 0 || gcOverlayState) return;
+  gcOverlayState = 'selecting';
+  renderApp();
+}
+
+// User picks CSV or PDF
+function doGcExport(type) {
+  const selected = TRIFECTA_DATA.giftCards.filter(g => selectedGcIds.has(g.id));
+  if (type === 'csv') {
+    exportGcCsv(selected);
+    gcOverlayState = 'csv_done';
+    addAudit('export_csv', `${selected.length} gift cards exported as CSV`);
+    renderApp();
+  } else {
+    exportDistributionSelected(selected);
+    gcOverlayState = 'pdf_hold';
+    TRIFECTA_DATA.giftCards.forEach(gc => {
+      if (selectedGcIds.has(gc.id)) gc.status = 'in_progress';
+    });
+    addAudit('export_pdf', `${selected.length} gift cards sent to PDF print`);
+    renderApp();
+  }
+}
+
+// CSV export of selected gift cards
+function exportGcCsv(gcs) {
+  gcs = gcs || TRIFECTA_DATA.giftCards.filter(g=>g.status!=='fulfilled');
+  const header = ['Name','Tag','Date','Amount','Status','Manually Added','Note'];
+  const lines  = gcs.map(gc => [
+    gc.name, gc.tag, gc.date, '$10', gc.status,
+    gc.manuallyAdded?'Yes':'No', gc.note||''
+  ].map(v=>`"${v}"`).join(','));
+  const csv  = [header.join(','),...lines].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), {href:url, download:'gc_selected.csv'}).click();
+  URL.revokeObjectURL(url);
+}
+
+// PDF distribution print — opens new window, triggers print dialog
+// Shows: name, TAG (bold), manual-add ✗ box, trifecta #, amount, note
+function exportDistributionSelected(gcs) {
+  const byEmp = {};
+  gcs.forEach(gc => {
+    if (!byEmp[gc.name]) byEmp[gc.name] = {name:gc.name, tag:gc.tag, gcs:[], notes:[]};
+    byEmp[gc.name].gcs.push(gc);
+    if (gc.note) byEmp[gc.name].notes.push(gc.note);
+  });
+  const rows = Object.values(byEmp).map((e, i) => {
+    const total    = e.gcs.length * 10;
+    const MONTH_MAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
+                        Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+    const fmtDate = d => {
+      const p = d.trim().split(' ');  // ['Mar', '27']
+      if (p.length === 2) return p[1].padStart(2,'0') + '/' + (MONTH_MAP[p[0]]||p[0]);
+      return d;
+    };
+    const dates = e.gcs.map(g => fmtDate(g.date)).join(', ');
+    const hasManual= e.gcs.some(g => g.manuallyAdded);
+    const note     = e.notes.join(' | ') || '&mdash;';
+    return `<tr>
+      <td class="num-col">${i+1}</td>
+      <td class="name">${e.name}</td>
+      <td class="tag">${e.tag}</td>
+      <td class="manual">${hasManual ? '&#10007;' : ''}</td>
+      <td>${dates}</td>
+      <td class="amount">$${total}</td>
+      <td>${note}</td>
+    </tr>`;
+  }).join('');
+
+  const totalAmt = Object.values(byEmp).reduce((s,e) => s + e.gcs.length * 10, 0);
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; font-size: 13px; color: #000; padding: 32px; background: #fff; }
+      h1   { font-size: 18px; font-weight: bold; margin: 0 0 4px 0; }
+      .sub { font-size: 11px; color: #000; margin: 0 0 18px 0; }
+      /* border-collapse:collapse stripped by html2canvas — use separate borders */
+      table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 8px;
+              border-top: 2px solid #000; border-left: 2px solid #000; }
+      th, td { border-right: 2px solid #000; border-bottom: 2px solid #000;
+               padding: 9px 10px; font-size: 13px; vertical-align: middle;
+               word-wrap: break-word; white-space: normal; overflow-wrap: break-word; }
+      th { background: #000; color: #fff; text-align: left; font-weight: bold; }
+      /* # and Amount centered */
+      th.c, td.c { text-align: center; }
+      td.num-col { text-align: center; font-size: 17px; font-weight: bold; }
+      td.name { font-weight: bold; min-width: 180px; max-width: 220px; word-wrap: break-word; white-space: normal; }
+      td.tag  { font-family: monospace; font-weight: bold; font-size: 16px; }
+      td.manual { text-align: center; font-weight: bold; font-size: 16px; }
+      td.amount { text-align: center; font-weight: bold; }
+      /* alternating rows — greyscale only */
+      tr:nth-child(even) td { background: #ebebeb; }
+      .total-row td { font-weight: bold; background: #ccc; font-size: 14px; }
+      .footer { margin-top: 16px; font-size: 11px; color: #000; }
+    </style>
+  </head><body>
+    <h1>Gift Card Distribution &mdash; Store 141</h1>
+    <p class="sub">
+      Period: ${TRIFECTA_DATA.period.from} &ndash; ${TRIFECTA_DATA.period.to} &nbsp;&nbsp;
+      Generated: ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} &nbsp;&nbsp;
+      Manager: ${TRIFECTA_DATA.manager} &nbsp;&nbsp;
+      Recipients: ${Object.keys(byEmp).length}
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th class="c">#</th>
+          <th>Full Name</th>
+          <th>Tag</th>
+          <th class="c">Manual</th>
+          <th>Date(s)</th>
+          <th class="c">Amount</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="total-row">
+          <td colspan="5" style="text-align:right;">Total</td>
+          <td class="amount">$${totalAmt}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="footer">&#10007; = manually added by manager &nbsp; | &nbsp; $10 per trifecta day</p>
+  </body></html>`;
+  // Render the distribution sheet into an off-screen div,
+  // use html2canvas → jsPDF to produce a real downloadable PDF.
+  addAudit('pdf_export', `Distribution PDF generated for ${Object.keys(byEmp).length} recipients`, html);
+  purgeOldAudit();
+
+  // Extract the <style> block from the html template and inject it
+  // separately — the regex below would otherwise strip it along with <head>.
+  const styleMatch  = html.match(/<style>([\s\S]*?)<\/style>/);
+  const styleEl     = document.createElement('style');
+  if (styleMatch) styleEl.textContent = styleMatch[1];
+
+  // Extract only the <body> content
+  const bodyMatch   = html.match(/<body>([\s\S]*?)<\/body>/);
+  const bodyContent = bodyMatch ? bodyMatch[1] : html;
+
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;';
+  container.appendChild(styleEl);
+  container.innerHTML += bodyContent;
+  document.body.appendChild(container);
+
+  html2canvas(container, { scale:2, useCORS:true, backgroundColor:'#ffffff' }).then(canvas => {
+    document.body.removeChild(container);
+    const { jsPDF } = window.jspdf;
+    const pdf    = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pxW    = canvas.width;
+    const pxH    = canvas.height;
+    const mmW    = 210 - 20;      // A4 width minus margins
+    const mmH    = pxH / pxW * mmW;
+    const pageH  = 297 - 20;     // A4 height minus margins
+    let   yPos   = 10;
+    let   srcY   = 0;
+
+    while (srcY < pxH) {
+      const sliceH = Math.min(pxH - srcY, pxH * (pageH / mmH));
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width  = pxW;
+      sliceCanvas.height = sliceH;
+      sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, pxW, sliceH, 0, 0, pxW, sliceH);
+      pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, yPos, mmW, sliceH/pxW*mmW);
+      srcY += sliceH;
+      if (srcY < pxH) { pdf.addPage(); yPos = 10; }
+    }
+    const fname = 'gc_distribution_' + new Date().toISOString().slice(0,10) + '.pdf';
+    pdf.save(fname);
+  }).catch(err => {
+    console.error('PDF render error:', err);
+    alert('PDF generation failed — opening print dialog instead.');
+    const blob = new Blob([html], {type:'text/html'});
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, '_blank');
+    if (win) win.onload = () => { win.print(); URL.revokeObjectURL(url); };
+  });
+}
+
+// Hold 2s on PDF confirm button → mark as fulfilled
+let doneHoldTimer   = null;
+let archiveHoldTimer= null;
+function startDoneHold() {
+  const btn = document.getElementById('confirm-done-btn');
+  if (btn) btn.style.transform = 'scale(.97)';
+  doneHoldTimer = setTimeout(() => {
+    TRIFECTA_DATA.giftCards.forEach(gc => {
+      if (gc.status === 'in_progress') gc.status = 'fulfilled';
+    });
+    selectedGcIds.clear();
+    gcOverlayState = null;
+    addAudit('archive', `PDF-printed gift cards marked as fulfilled`);
+    renderApp();
+  }, 2000);
+}
+function cancelDoneHold() {
+  if (doneHoldTimer) { clearTimeout(doneHoldTimer); doneHoldTimer = null; }
+  const btn = document.getElementById('confirm-done-btn');
+  if (btn) btn.style.transform = '';
+}
+function startArchiveHold() {
+  archiveHoldTimer = setTimeout(() => {
+    TRIFECTA_DATA.giftCards.forEach(gc => {
+      if (selectedGcIds.has(gc.id)) gc.status = 'fulfilled';
+    });
+    selectedGcIds.clear();
+    gcOverlayState = null;
+    addAudit('archive', `Selected gift cards archived`);
+    renderApp();
+  }, 2000);
+}
+function cancelArchiveHold() {
+  if (archiveHoldTimer) { clearTimeout(archiveHoldTimer); archiveHoldTimer = null; }
+}
+
+// Leaderboard CSV export
+function exportLeaderboard() {
+  const rows = TRIFECTA_DATA.employees
+    .filter(e => e.trifectas.length > 0)
+    .map(e => {
+      const n = e.trifectas.length;
+      return { ...e,
+        avgSpd:  n ? (e.trifectas.reduce((s,t)=>s+t.sp_d,0)/n).toFixed(0) : 0,
+        avgCust: n ? (e.trifectas.reduce((s,t)=>s+t.cust,0)/n).toFixed(1) : 0,
+        avgSpn:  n ? (e.trifectas.reduce((s,t)=>s+t.sp_n,0)/n).toFixed(1) : 0,
+      };
+    })
+    .sort((a,b) => b.trifectas.length - a.trifectas.length);
+  const header = ['Rank','Name','Trifectas','Avg SP$','Avg Cust#','Avg SP#'];
+  const lines  = rows.map((e,i)=>[i+1,e.name,e.trifectas.length,'$'+e.avgSpd,e.avgCust,e.avgSpn].join(','));
+  const csv    = [header.join(','),...lines].join('\n');
+  const blob   = new Blob([csv], {type:'text/csv'});
+  const url    = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), {href:url, download:'trifecta_leaderboard.csv'}).click();
+  URL.revokeObjectURL(url);
+  addAudit('export_csv', `Leaderboard exported as CSV (${rows.length} rows)`);
+}
+
+function exportDistribution() { exportDistributionSelected(
+  TRIFECTA_DATA.giftCards.filter(g=>g.status!=='fulfilled')
+); }
+
+// ── Audit log ─────────────────────────────────────────────────
+function toggleAudit() { auditOpen = !auditOpen; renderApp(); }
+
+// Open stored PDF HTML in a new window for re-printing
+// Purge audit entries older than 6 months (180 days).
+// Called after each PDF export to keep log manageable.
+// In production this would be handled server-side; here we
+// use the entry timestamp and compare to today.
+function purgeOldAudit() {
+  const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  auditLog = auditLog.filter(e => {
+    try {
+      const d = new Date(e.ts);
+      return (now - d.getTime()) < SIX_MONTHS_MS;
+    } catch(ex) { return true; } // keep if unparseable
+  });
+}
+
+function viewAuditPdf(idx) {
+  const entry = auditLog[idx];
+  if (!entry || !entry.payload) return;
+  const blob = new Blob([entry.payload], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function exportAuditCsv() {
+  const header = ['Time','Type','Detail'];
+  const lines  = auditLog.map(e=>[e.ts,e.type,e.detail].map(v=>`"${v}"`).join(','));
+  const csv    = [header.join(','),...lines].join('\n');
+  const blob   = new Blob([csv], {type:'text/csv'});
+  const url    = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), {href:url, download:'audit_log.csv'}).click();
+  URL.revokeObjectURL(url);
+}
+
+// ── PIN auth ──────────────────────────────────────────────────
+function submitPin() {
+  if (pinState.locked) return;
+  const inp      = document.getElementById('pin-inp');
+  const val      = inp ? inp.value.trim() : '';
+  const stored   = getStoredPin();
+  const pinSet   = !!stored;
+
+  if (!pinSet) {
+    // First-use setup
+    if (!pinState.settingPin || !pinState.confirmVal) {
+      pinState.settingPin  = true;
+      pinState.confirmVal  = val;
+      addAudit('pin_setup', 'PIN setup initiated');
+      renderApp();
+    } else {
+      if (val === pinState.confirmVal) {
+        storePin(val);
+        pinState.unlocked   = true;
+        pinState.settingPin = false;
+        pinState.confirmVal = '';
+        addAudit('pin_setup', 'PIN set successfully');
+        renderApp();
+      } else {
+        pinState.confirmVal = '';
+        addAudit('pin_setup', 'PIN confirmation mismatch — reset');
+        alert('PINs did not match. Please start again.');
+        renderApp();
+      }
+    }
+  } else {
+    // Verify PIN
+    addAudit('pin_attempt', `Attempt with value: ${val} — ${val===stored?'SUCCESS':'FAIL'}`);
+    if (val === stored) {
+      pinState.unlocked = true;
+      pinState.attempts = 0;
+      renderApp();
+    } else {
+      pinState.attempts++;
+      if (pinState.attempts >= 3) {
+        pinState.locked = true;
+        addAudit('pin_lockout', '3 failed attempts — access locked');
+        renderApp();
+      } else {
+        alert(`Incorrect PIN. ${3-pinState.attempts} attempt${3-pinState.attempts!==1?'s':''} remaining.`);
+        renderApp();
+      }
+    }
+  }
+}
+
+// Hold-to-reveal for leaderboard names (rank 6+)
+function startLbReveal() {
+  const btn = document.getElementById('lb-censor-btn');
+  if (btn) btn.classList.add('glowing');
+  lbHoldTimer = setTimeout(() => { lbNamesVisible = !lbNamesVisible; renderApp(); }, 3000);
+}
+function cancelLbReveal() {
+  if (lbHoldTimer) { clearTimeout(lbHoldTimer); lbHoldTimer = null; }
+  const btn = document.getElementById('lb-censor-btn');
+  if (btn) btn.classList.remove('glowing');
+}
+
+// Boot
+renderApp();
+</script>
+</body>
+</html>
