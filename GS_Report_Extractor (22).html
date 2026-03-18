@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>GS Report Extractor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B1220;--ink-md:#1E2D45;--blue:#1652E8;--blue-lt:#E3EEFE;--blue-dim:#A9C3FB;--green:#059669;--green-bg:#D1FAE5;--green-dk:#065F34;--green-dim:#6EE7B7;--amber:#D97706;--amber-bg:#FEF3C7;--amber-dim:#FDE68A;--red:#B91C1C;--red-bg:#FEE2E2;--red-dim:#FCA5A5;--sl:#64748B;--sl-lt:#94A3B8;--sl-dim:#CBD5E1;--sl-bg:#F1F5F9;--wh:#FFFFFF;--page:#E8EEF7;--r4:4px;--r8:8px;--r10:10px;--r14:14px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;background:var(--page);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink);}
+.screen{padding:32px;max-width:1100px;margin:0 auto;}
+.slbl{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--blue);letter-spacing:.10em;text-transform:uppercase;background:var(--blue-lt);border:1px solid var(--blue-dim);display:inline-block;padding:3px 10px;border-radius:20px;margin-bottom:12px;}
+.card{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);padding:20px 24px;box-shadow:0 1px 3px rgba(11,18,32,.09);margin-bottom:16px;}
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;}
+.cfg-row{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.cfg-field label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--sl);margin-bottom:4px;}
+.cfg-input{border:1.5px solid var(--sl-dim);border-radius:var(--r4);padding:7px 11px;font-size:13px;color:var(--ink);background:var(--wh);font-family:'DM Sans',sans-serif;width:140px;outline:none;transition:border-color .15s;}
+.cfg-input:focus{border-color:var(--blue);}
+.cfg-input:disabled{background:var(--sl-bg);color:var(--sl);cursor:not-allowed;}
+.lock-btn{font-size:10px;padding:7px 13px;border-radius:var(--r4);border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--sl);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;user-select:none;white-space:nowrap;transition:background .15s;}
+.lock-btn.glowing{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+.lock-btn.unlocked{background:var(--green-bg);border-color:var(--green-dim);color:var(--green-dk);}
+.drop-zone{border:2px dashed var(--sl-dim);border-radius:var(--r8);padding:32px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--blue);background:var(--blue-lt);}
+.prog-wrap{height:8px;background:var(--sl-bg);border-radius:4px;overflow:hidden;margin-top:10px;}
+.prog-fill{height:100%;border-radius:4px;transition:width .3s;}
+.prog-blue{background:var(--blue);}
+.prog-green{background:var(--green);}
+.prog-red{background:var(--red);}
+.log-box{background:var(--ink);border-radius:var(--r8);padding:12px 14px;font-family:'DM Mono',monospace;font-size:11px;max-height:160px;overflow-y:auto;margin-top:10px;}
+.log-box::-webkit-scrollbar{width:3px;}
+.log-box::-webkit-scrollbar-thumb{background:var(--sl);}
+.log-ok{color:#6EE7B7;}.log-warn{color:#FCD34D;}.log-err{color:#FCA5A5;}.log-info{color:#93C5FD;}
+.tbl-wrap{overflow-x:auto;border-radius:var(--r8);border:1px solid var(--sl-dim);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:var(--ink-md);}
+th{color:rgba(255,255,255,.75);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;}
+th.r{text-align:right;}
+td{padding:8px 14px;border-bottom:1px solid var(--sl-bg);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--blue-lt);}
+td.name{font-weight:600;color:var(--ink);}
+td.num{font-family:'DM Mono',monospace;font-weight:700;text-align:right;}
+td.money{color:var(--green-dk);}
+td.pct{color:var(--blue);}
+.btn{border:none;border-radius:var(--r4);padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn:hover{opacity:.88;}.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green.done{background:#0f5132;}
+.btn-sl{background:var(--sl-bg);border:1px solid var(--sl-dim);color:var(--sl);}
+.badge{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-dim);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;}
+.badge-green{background:var(--green-bg);color:var(--green-dk);border-color:var(--green-dim);}
+/* ── Roster panel ─────────────────────────────────────────── */
+.roster-panel{border-top:1px solid var(--sl-dim);margin-top:14px;padding-top:14px;}
+.roster-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.roster-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--ink);flex:1;}
+.roster-lock{font-size:10px;padding:5px 11px;border-radius:var(--r4);border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--sl);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;user-select:none;white-space:nowrap;transition:background .15s;}
+.roster-lock.glowing{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);}
+.roster-lock.unlocked{background:var(--green-bg);border-color:var(--green-dim);color:var(--green-dk);}
+.roster-scroll{max-height:220px;overflow-y:auto;border:1px solid var(--sl-dim);border-radius:var(--r8);background:var(--sl-bg);}
+.roster-scroll::-webkit-scrollbar{width:3px;}
+.roster-scroll::-webkit-scrollbar-thumb{background:var(--sl-dim);border-radius:2px;}
+.roster-row{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid var(--sl-dim);background:var(--wh);}
+.roster-row:last-child{border-bottom:none;}
+.roster-row .ri{font-size:10px;color:var(--sl-lt);width:18px;text-align:center;flex-shrink:0;}
+.roster-inp{border:1px solid var(--sl-dim);border-radius:var(--r4);padding:5px 8px;font-size:12px;color:var(--ink);background:var(--wh);font-family:'DM Sans',sans-serif;flex:1;outline:none;min-width:0;}
+.roster-inp:focus{border-color:var(--blue);}
+.roster-inp:disabled{background:var(--sl-bg);color:var(--sl);border-color:transparent;cursor:default;}
+.roster-del{width:22px;height:22px;border-radius:3px;border:1px solid var(--red-dim);background:var(--red-bg);color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.roster-del:disabled{opacity:.25;cursor:not-allowed;}
+.roster-add{display:flex;align-items:center;gap:6px;padding:7px 10px;cursor:pointer;font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-lt);border-radius:0 0 var(--r8) var(--r8);}
+.roster-add:hover{background:var(--blue-dim);}
+.roster-empty{padding:16px;text-align:center;font-size:11px;color:var(--sl-lt);}
+/* strikethrough for non-roster names */
+tr.not-on-roster td{opacity:.45;}
+tr.not-on-roster td.name{text-decoration:line-through;color:var(--red);}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="slbl">GS Report Extractor · Store 141</div>
+
+  <!-- Settings — collapsed by default, hold 1s to expand -->
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div id="settings-header" style="display:flex;align-items:center;gap:10px;padding:14px 20px;cursor:pointer;user-select:none;"
+      onmousedown="startSettingsHold()" onmouseup="cancelSettingsHold()" onmouseleave="cancelSettingsHold()"
+      ontouchstart="startSettingsHold()" ontouchend="cancelSettingsHold()">
+      <span style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ink);flex:1;">⚙ Filter settings</span>
+      <span id="settings-hint" style="font-size:10px;color:var(--sl-lt);">Hold 1s to open</span>
+      <span id="settings-chevron" style="font-size:12px;color:var(--sl-lt);transition:transform .2s;">▼</span>
+    </div>
+    <div id="settings-body" style="display:none;padding:0 20px 20px;">
+    <div class="cfg-row">
+      <div class="cfg-field">
+        <label>Store # (Col A)</label>
+        <input class="cfg-input" id="inp-store" value="141" disabled/>
+      </div>
+      <div class="cfg-field">
+        <label>Dept (Col B)</label>
+        <input class="cfg-input" id="inp-dept" value="GS" disabled/>
+      </div>
+      <button class="lock-btn" id="lock-btn"
+        onmousedown="startLockHold()" onmouseup="cancelLockHold()" onmouseleave="cancelLockHold()"
+        ontouchstart="startLockHold()" ontouchend="cancelLockHold()">
+        🔒 Hold 3s to edit
+      </button>
+      <span id="lock-note" style="font-size:10px;color:var(--sl-lt);"></span>
+    </div>
+    <div style="font-size:10px;color:var(--sl-lt);margin-top:8px;">
+      Daily sheet only · Col A = Store · Col B = Dept · C = Last Name · D = First Name · F = Cust # · G = SP Qty · H = SP $ · I = SP %
+    </div>
+
+    <!-- Current employees roster -->
+    <div class="roster-panel">
+      <div class="roster-header" style="flex-wrap:wrap;gap:8px;">
+        <div class="roster-title">👥 Current employees <span id="roster-count" style="font-size:10px;color:var(--sl-lt);font-family:'DM Mono',monospace;"></span></div>
+        <button id="add-all-btn"
+          style="font-size:10px;padding:5px 11px;border-radius:var(--r4);border:1px solid var(--sl-dim);background:var(--sl-bg);color:var(--sl);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;user-select:none;white-space:nowrap;transition:background .15s;"
+          onmousedown="startAddAll(this)" onmouseup="cancelAddAll(this)" onmouseleave="cancelAddAll(this)"
+          ontouchstart="startAddAll(this)" ontouchend="cancelAddAll(this)">
+          👥 Hold 5s to add all from results
+        </button>
+        <button class="roster-lock" id="roster-lock-btn"
+          onmousedown="startRosterHold()" onmouseup="cancelRosterHold()" onmouseleave="cancelRosterHold()"
+          ontouchstart="startRosterHold()" ontouchend="cancelRosterHold()">
+          🔒 Hold 1s to edit
+        </button>
+      </div>
+      <div id="roster-mount"></div>
+      <div style="font-size:10px;color:var(--sl-lt);margin-top:6px;">
+        Names <strong>not</strong> on this list will be struck through in results and excluded from all exports. Leave empty to include everyone.
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="card">
+    <div class="drop-zone" id="drop-zone">
+      <div style="font-size:32px;margin-bottom:8px;">📂</div>
+      <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">Drop Store Daily Sales .xlsx files here</div>
+      <div style="font-size:11px;color:var(--sl-lt);">or click to browse · multiple files supported · filename: Store Daily Sales MM-DD-YY</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" multiple style="display:none;">
+    <div class="prog-wrap" id="prog-wrap" style="display:none;">
+      <div class="prog-fill prog-blue" id="prog-fill" style="width:0%;"></div>
+    </div>
+    <div class="log-box" id="log-box" style="display:none;"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="results-card" style="display:none;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="card-title" style="margin:0;">Results</div>
+      <span class="badge" id="results-badge">0 rows</span>
+      <span class="badge badge-green" id="date-badge" style="display:none;"></span>
+      <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="btn btn-sl" onclick="doExport('csv')">↓ CSV</button>
+        <button class="btn btn-sl" onclick="doExport('xlsx')">↓ XLSX</button>
+        <button class="btn btn-green" id="btn-db" onclick="saveToDb()">Save to Database</button>
+        <button class="btn" onclick="clearData()" style="background:#FEE2E2;border:1px solid #FCA5A5;color:#B91C1C;">&#128465; Clear data</button>
+      </div>
+    </div>
+    <div id="tbl-mount"></div>
+  </div>
+
+  <!--
+  ================================================================
+  DATABASE INTEGRATION — wire saveToDb() when ready.
+
+  Record shape (allRecords array):
+  {
+    date:       Date      — parsed from filename MM-DD-YY
+    sourceFile: string    — original filename
+    store:      string    — Col A
+    dept:       string    — Col B
+    lastName:   string    — Col C
+    firstName:  string    — Col D
+    custNum:    number    — Col F  (# transactions)
+    spQty:      number    — Col G  (service plan qty)
+    spSales:    number    — Col H  (service plan $)
+    spPct:      number    — Col I  (SP %, raw decimal e.g. 0.0184)
+  }
+
+  Filename convention:
+    Single day:     DailyGSSales-MM-DD-YYYY.csv
+    Contiguous:     DailyGSSales-MM-DD-YYYY--to--MM-DD-YYYY.csv
+    Non-contiguous: BrokenDailyGSSales-YYYY--MM/DD-MM/DD....csv
+
+  To connect a real database replace the stub in saveToDb() with:
+    const res = await fetch('/api/records', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(allRecords)
+    });
+    if (!res.ok) throw new Error(await res.text());
+  ================================================================
+  -->
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let allRecords  = [];   // parsed records from current session
+let loadedFiles = [];   // { name, date } per processed file
+let editing     = false;
+let lockTimer   = null;
+
+// ── Employee roster ───────────────────────────────────────────
+// Up to 30 employees. Each: { firstName, lastName }
+// Names NOT in this list are marked as errors in the table and
+// excluded from all exports. If list is empty, all names pass.
+let roster       = [];
+let rosterLocked = true;
+let rosterTimer  = null;
+
+// ── Roster hold (1s) ──────────────────────────────────────────
+function startRosterHold() {
+  if (!rosterLocked) { setRosterLocked(true); return; }
+  const btn = document.getElementById('roster-lock-btn');
+  if (btn) btn.classList.add('glowing');
+  rosterTimer = setTimeout(() => setRosterLocked(false), 1000);
+}
+function cancelRosterHold() {
+  if (rosterTimer) { clearTimeout(rosterTimer); rosterTimer = null; }
+  if (rosterLocked) {
+    const btn = document.getElementById('roster-lock-btn');
+    if (btn) btn.classList.remove('glowing');
+  }
+}
+function setRosterLocked(v) {
+  rosterLocked = v;
+  const btn = document.getElementById('roster-lock-btn');
+  if (!btn) return;
+  btn.classList.remove('glowing');
+  btn.classList.toggle('unlocked', !v);
+  btn.textContent = v ? '🔒 Hold 1s to edit' : '🔓 Click to lock';
+  renderRoster();
+}
+function addRosterRow() {
+  if (roster.length >= 30) return;
+  roster.push({ firstName: '', lastName: '' });
+  renderRoster();
+  // Focus last first-name input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.roster-fn');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 30);
+}
+function removeRosterRow(i) {
+  roster.splice(i, 1);
+  renderRoster();
+  renderTable();
+  updateDropCard();
+}
+
+// ── Drop card: normal when empty, trash when data loaded ──────
+let trashTimer = null;
+function updateDropCard() {
+  const dz = document.getElementById('drop-zone');
+  if (!dz) return;
+
+  if (allRecords.length > 0) {
+    // ── TRASH MODE ──
+    dz.innerHTML =
+      '<div style="font-size:44px;margin-bottom:10px;">&#128465;&#65039;</div>'
+      + '<div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:6px;">'
+      + allRecords.length + ' rows loaded</div>'
+      + '<div style="font-size:11px;color:var(--sl-lt);">Hold 3 seconds to clear all data and load new files</div>';
+    dz.style.cssText = 'border:2px solid var(--red-dim);border-radius:var(--r8);padding:32px;'
+      + 'text-align:center;cursor:pointer;background:var(--red-bg);transition:opacity .2s;';
+    // Wire hold handlers
+    dz.onmousedown  = function(e) { e.preventDefault(); startTrashHold(); };
+    dz.onmouseup    = function()  { cancelTrashHold(); };
+    dz.onmouseleave = function()  { cancelTrashHold(); };
+    dz.ontouchstart = function(e) { e.preventDefault(); startTrashHold(); };
+    dz.ontouchend   = function()  { cancelTrashHold(); };
+    dz.onclick      = null;
+    dz.ondragover   = function(e) { e.preventDefault(); };  // block drops in trash mode
+    dz.ondrop       = function(e) { e.preventDefault(); };  // block drops in trash mode
+  } else {
+    // ── NORMAL DROP MODE ──
+    dz.innerHTML =
+      '<div style="font-size:32px;margin-bottom:8px;">&#128194;</div>'
+      + '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">'
+      + 'Drop Store Daily Sales .xlsx files here</div>'
+      + '<div style="font-size:11px;color:var(--sl-lt);">or click to browse &middot; multiple files &middot; Store Daily Sales MM-DD-YY</div>';
+    dz.style.cssText = 'border:2px dashed var(--sl-dim);border-radius:var(--r8);'
+      + 'padding:32px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;';
+    dz.onmousedown  = null;
+    dz.onmouseup    = null;
+    dz.onmouseleave = null;
+    dz.ontouchstart = null;
+    dz.ontouchend   = null;
+    dz.onclick      = function() { document.getElementById('file-input').click(); };
+    dz.ondragover   = function(e) { e.preventDefault(); dz.style.borderColor='var(--blue)'; dz.style.background='var(--blue-lt)'; };
+    dz.ondragleave  = function()  { dz.style.borderColor=''; dz.style.background=''; };
+    dz.ondrop       = function(e) {
+      e.preventDefault();
+      dz.style.borderColor = '';
+      dz.style.background  = '';
+      handleFiles([...e.dataTransfer.files].filter(f => f.name.match(/\.xlsx?$/i)));
+    };
+  }
+}
+
+function startTrashHold() {
+  const dz = document.getElementById('drop-zone');
+  if (dz) dz.style.opacity = '0.6';
+  trashTimer = setTimeout(() => {
+    if (dz) dz.style.opacity = '';
+    const hasUnsaved = allRecords.length > 0;
+    if (hasUnsaved) {
+      const go = confirm('Clear all loaded data?\n\n' + allRecords.length + ' rows will be removed.\n\nMake sure you have exported anything you need before clearing.');
+      if (!go) return;
+    }
+    allRecords  = [];
+    loadedFiles = [];
+    document.getElementById('log-box').style.display   = 'none';
+    document.getElementById('prog-wrap').style.display = 'none';
+    document.getElementById('results-card').style.display = 'none';
+    updateDropCard();
+  }, 3000);
+}
+
+function cancelTrashHold() {
+  if (trashTimer) { clearTimeout(trashTimer); trashTimer = null; }
+  const dz = document.getElementById('drop-zone');
+  if (dz) dz.style.opacity = '';
+}
+function updateRoster(i, field, val) {
+  roster[i][field] = val.trim();
+  renderTable(); // live update strikethroughs
+}
+
+// Check if a name is on the roster (case-insensitive)
+// Returns true (pass) if roster is empty OR name matches an entry
+function onRoster(lastName, firstName) {
+  if (roster.length === 0) return false;  // empty = all struck out, add employees to clear
+  const l = lastName.trim().toLowerCase();
+  const f = firstName.trim().toLowerCase();
+  return roster.some(e =>
+    e.lastName.toLowerCase() === l && e.firstName.toLowerCase() === f
+  );
+}
+
+function renderRoster() {
+  const mount = document.getElementById('roster-mount');
+  if (!mount) return;
+  const countEl = document.getElementById('roster-count');
+  if (countEl) countEl.textContent = roster.length ? '(' + roster.length + '/30)' : '';
+
+  if (roster.length === 0) {
+    mount.innerHTML = '<div class="roster-scroll"><div class="roster-empty">No employees added — all names will be included</div></div>'
+      + (!rosterLocked ? '<div class="roster-add" onclick="addRosterRow()">＋ Add employee</div>' : '');
+    return;
+  }
+
+  let rows = '<div class="roster-scroll">';
+  roster.forEach((e, i) => {
+    const dis = rosterLocked ? 'disabled' : '';
+    rows += '<div class="roster-row">'
+      + '<span class="ri">' + (i+1) + '</span>'
+      + '<input class="roster-inp" placeholder="First name" value="' + esc(e.firstName) + '" ' + dis
+      + ' data-idx="' + i + '" data-field="firstName" oninput="handleRosterInput(this)"/>'
+      + '<input class="roster-inp" placeholder="Last name" value="' + esc(e.lastName) + '" ' + dis
+      + ' data-idx="' + i + '" data-field="lastName" oninput="handleRosterInput(this)"/>'
+      + '<button class="roster-del" ' + (rosterLocked ? 'disabled' : '')
+      + ' data-idx="' + i + '" onclick="removeRosterRow(parseInt(this.dataset.idx))">✕</button>'
+      + '</div>';
+  });
+  rows += '</div>';
+  if (!rosterLocked && roster.length < 30) {
+    rows += '<div class="roster-add" onclick="addRosterRow()">＋ Add employee</div>';
+  }
+  mount.innerHTML = rows;
+}
+
+function handleRosterInput(el) {
+  const i     = parseInt(el.dataset.idx);
+  const field = el.dataset.field;
+  roster[i][field] = el.value.trim();
+  // Live re-render table strikethroughs without rebuilding roster inputs
+  renderTableStrikes();
+}
+
+// Re-apply strikethrough classes without full table rebuild
+function renderTableStrikes() {
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 3) return;
+    const ln = cells[1].querySelector('.name-text')?.textContent || cells[1].textContent.trim().split('\n')[0].trim();
+    const fn = cells[2].textContent.trim();
+    const ok = onRoster(ln, fn);
+    tr.classList.toggle('not-on-roster', !ok);
+  });
+}
+
+// ── Settings panel hold (1s to open) ────────────────────────────
+let settingsOpen  = false;
+let settingsTimer = null;
+function startSettingsHold() {
+  if (settingsOpen) { toggleSettings(false); return; }
+  settingsTimer = setTimeout(() => toggleSettings(true), 1000);
+}
+function cancelSettingsHold() {
+  if (settingsTimer) { clearTimeout(settingsTimer); settingsTimer = null; }
+}
+function toggleSettings(open) {
+  settingsOpen = open;
+  const body    = document.getElementById('settings-body');
+  const hint    = document.getElementById('settings-hint');
+  const chevron = document.getElementById('settings-chevron');
+  if (body)    body.style.display    = open ? 'block' : 'none';
+  if (hint)    hint.textContent      = open ? 'Click header to close' : 'Hold 1s to open';
+  if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+// ── Add all from results (hold 5s) ───────────────────────────────
+let addAllTimer = null;
+let addAllBtn   = null;
+function startAddAll(btn) {
+  addAllBtn = btn;
+  btn.classList.add('glowing');
+  btn.textContent = '⏳ Hold 5s…';
+  addAllTimer = setTimeout(() => {
+    // Collect unique names from allRecords
+    const seen = new Set();
+    let added  = 0;
+    for (const r of allRecords) {
+      const key = r.lastName.toLowerCase() + '|' + r.firstName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        // Only add if not already in roster
+        const already = roster.some(e =>
+          e.lastName.toLowerCase() === r.lastName.toLowerCase() &&
+          e.firstName.toLowerCase() === r.firstName.toLowerCase()
+        );
+        if (!already && roster.length < 30) {
+          roster.push({ firstName: r.firstName, lastName: r.lastName });
+          added++;
+        }
+      }
+    }
+    btn.classList.remove('glowing');
+    btn.textContent = '✓ Added ' + added + ' employees';
+    btn.style.background = 'var(--green-bg)';
+    btn.style.borderColor = 'var(--green-dim)';
+    btn.style.color = 'var(--green-dk)';
+    renderRoster();
+    renderTable();
+    setTimeout(() => {
+      btn.textContent = '👥 Hold 5s to add all from results';
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 3000);
+  }, 5000);
+}
+function cancelAddAll(btn) {
+  if (addAllTimer) { clearTimeout(addAllTimer); addAllTimer = null; }
+  if (btn) { btn.classList.remove('glowing'); btn.textContent = '👥 Hold 5s to add all from results'; }
+}
+
+// ── Lock / unlock (hold 3s) ────────────────────────────────────
+function startLockHold() {
+  if (editing) { setEditing(false); return; }
+  document.getElementById('lock-btn').classList.add('glowing');
+  lockTimer = setTimeout(() => setEditing(true), 3000);
+}
+function cancelLockHold() {
+  if (lockTimer) { clearTimeout(lockTimer); lockTimer = null; }
+  if (!editing) document.getElementById('lock-btn').classList.remove('glowing');
+}
+function setEditing(v) {
+  editing = v;
+  document.getElementById('inp-store').disabled = !v;
+  document.getElementById('inp-dept').disabled  = !v;
+  const btn = document.getElementById('lock-btn');
+  btn.classList.remove('glowing');
+  btn.classList.toggle('unlocked', v);
+  btn.textContent = v ? '🔓 Click to lock' : '🔒 Hold 3s to edit';
+  document.getElementById('lock-note').textContent = v ? 'Unlocked — edit then click lock when done' : '';
+}
+
+// ── Drop zone ──────────────────────────────────────────────────
+const fi = document.getElementById('file-input');
+fi.addEventListener('change', e => { handleFiles([...e.target.files]); fi.value = ''; });
+
+// ── Process files ──────────────────────────────────────────────
+async function handleFiles(files) {
+  if (!files.length) return;
+
+  const store    = document.getElementById('inp-store').value.trim();
+  const dept     = document.getElementById('inp-dept').value.trim();
+  const logBox   = document.getElementById('log-box');
+  const progWrap = document.getElementById('prog-wrap');
+  const progFill = document.getElementById('prog-fill');
+
+  logBox.style.display   = 'block';
+  progWrap.style.display = 'block';
+  logBox.innerHTML = '';
+  allRecords  = [];
+  loadedFiles = [];
+
+  // Reset results
+  document.getElementById('results-card').style.display = 'none';
+  const btnDb = document.getElementById('btn-db');
+  if (btnDb) { btnDb.disabled = false; btnDb.textContent = 'Save to Database'; btnDb.classList.remove('done'); }
+
+  function log(msg, type) {
+    const d = document.createElement('div');
+    d.className = 'log-' + (type || 'info');
+    d.textContent = msg;
+    logBox.appendChild(d);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  log('[START] ' + files.length + ' file(s) — Store:"' + store + '" Dept:"' + dept + '"', 'info');
+  let errors = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+
+    // Update progress bar
+    progFill.style.width = Math.round(((i + 0.5) / files.length) * 90 + 5) + '%';
+    progFill.className = 'prog-fill prog-blue';
+
+    // Parse date from filename e.g. "Store Daily Sales 12-29-25.xlsx"
+    const m = file.name.match(/(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+    const fileDate = m
+      ? new Date((m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + m[1].padStart(2,'0') + '-' + m[2].padStart(2,'0') + 'T12:00:00')
+      : null;
+    if (!fileDate) log('[WARN] ' + file.name + ' — date not found in filename', 'warn');
+
+    try {
+      const buf = await file.arrayBuffer();
+      const wb  = XLSX.read(buf, { type: 'array' });
+
+      // Daily sheet only
+      const ws = wb.Sheets['Daily'];
+      if (!ws) { log('[WARN] ' + file.name + ' — no "Daily" sheet', 'warn'); errors++; continue; }
+
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Find header row: Col A trimmed lowercase === 'store'
+      let headerIdx = -1;
+      for (let r = 0; r < rows.length; r++) {
+        if (String(rows[r][0]).trim().toLowerCase() === 'store') { headerIdx = r; break; }
+      }
+      if (headerIdx === -1) { log('[WARN] ' + file.name + ' — header row not found (Col A = "store")', 'warn'); errors++; continue; }
+
+      // Rows after header: match Col A = store, Col B = dept
+      let found = 0;
+      for (const row of rows.slice(headerIdx + 1)) {
+        const colA = String(row[0] ?? '').trim();
+        const colB = String(row[1] ?? '').trim();
+        if (colA !== store) continue;
+        if (colB.toUpperCase() !== dept.toUpperCase()) continue;
+        const lastName  = String(row[2] ?? '').trim();
+        const firstName = String(row[3] ?? '').trim();
+        if (!lastName || !firstName || lastName.toLowerCase() === 'total') continue;
+
+        allRecords.push({
+          date:       fileDate,
+          sourceFile: file.name,
+          store:      colA,
+          dept:       colB,
+          lastName,
+          firstName,
+          custNum:  parseFloat(row[5]) || 0,   // Col F — # transactions
+          spQty:    parseFloat(row[6]) || 0,   // Col G — service plan qty
+          spSales:  parseFloat(row[7]) || 0,   // Col H — service plan $
+          spPct:    parseFloat(row[8]) || 0,   // Col I — SP %
+        });
+        found++;
+      }
+
+      if (found === 0) {
+        log('[WARN] ' + file.name + ' — 0 rows matched Store:"' + store + '" Dept:"' + dept + '"', 'warn');
+        errors++;
+      } else {
+        log('[OK] ' + file.name + ' — ' + found + ' rows', 'ok');
+        loadedFiles.push({ name: file.name, date: fileDate });
+      }
+
+    } catch (e) {
+      log('[ERR] ' + file.name + ' — ' + (e.message || 'read error'), 'err');
+      errors++;
+    }
+  }
+
+  // Final progress
+  progFill.style.width = '100%';
+  progFill.className = 'prog-fill ' + (errors > 0 && allRecords.length === 0 ? 'prog-red' : 'prog-green');
+  log('[DONE] ' + allRecords.length + ' rows' + (errors ? ' · ' + errors + ' warning(s)' : ''), errors && allRecords.length === 0 ? 'err' : 'ok');
+
+  renderTable();
+}
+
+// ── Render table ───────────────────────────────────────────────
+function renderTable() {
+  const card = document.getElementById('results-card');
+  if (!allRecords.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  document.getElementById('results-badge').textContent = allRecords.length + ' row' + (allRecords.length !== 1 ? 's' : '');
+
+  const dates = loadedFiles.map(f => f.date).filter(Boolean).sort((a,b) => a-b);
+  const dateBadge = document.getElementById('date-badge');
+  if (dates.length) {
+    const fmt = d => (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+    dateBadge.style.display = '';
+    dateBadge.textContent = dates.length === 1 ? fmt(dates[0]) : fmt(dates[0]) + ' – ' + fmt(dates[dates.length-1]);
+  }
+
+  let html = '<div class="tbl-wrap"><table><thead><tr>'
+    + '<th>#</th><th>Last Name</th><th>First Name</th><th>Date</th>'
+    + '<th class="r">Cust #</th><th class="r">SP Qty</th><th class="r">SP $</th><th class="r">SP %</th>'
+    + '</tr></thead><tbody>';
+
+  allRecords.forEach((r, i) => {
+    const dateStr = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '—';
+    const pct     = r.spPct < 1 ? (r.spPct * 100).toFixed(2) + '%' : r.spPct.toFixed(2) + '%';
+    const inRoster = onRoster(r.lastName, r.firstName);
+    html += '<tr' + (inRoster ? '' : ' class="not-on-roster"') + '>'
+      + '<td style="color:var(--sl-lt);font-size:10px;">' + (i+1) + '</td>'
+      + '<td class="name"><span class="name-text">' + esc(r.lastName) + '</span>' + (inRoster ? '' : ' <span style="font-size:9px;color:var(--red);font-weight:700;">⚠ not on roster</span>') + '</td>'
+      + '<td>' + esc(r.firstName) + '</td>'
+      + '<td style="font-size:11px;color:var(--sl);">' + dateStr + '</td>'
+      + '<td class="num">' + r.custNum.toLocaleString() + '</td>'
+      + '<td class="num">' + r.spQty.toLocaleString() + '</td>'
+      + '<td class="num money">$' + r.spSales.toFixed(2) + '</td>'
+      + '<td class="num pct">' + pct + '</td>'
+      + '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('tbl-mount').innerHTML = html;
+}
+
+// ── Build filename ─────────────────────────────────────────────
+function buildFilename(ext) {
+  const dept  = document.getElementById('inp-dept').value.trim();
+  const dates = loadedFiles.map(f => f.date).filter(Boolean).sort((a,b) => a-b);
+  const pad   = n => String(n).padStart(2,'0');
+  const fmt   = d => pad(d.getMonth()+1) + '-' + pad(d.getDate()) + '-' + d.getFullYear();
+  const slash = d => pad(d.getMonth()+1) + '/' + pad(d.getDate());
+  if (!dates.length) return 'Daily' + dept + 'Sales.' + ext;
+  if (dates.length === 1) return 'Daily' + dept + 'Sales-' + fmt(dates[0]) + '.' + ext;
+  let contiguous = true;
+  for (let i = 1; i < dates.length; i++) {
+    if ((dates[i] - dates[i-1]) / 86400000 !== 1) { contiguous = false; break; }
+  }
+  if (contiguous) return 'Daily' + dept + 'Sales-' + fmt(dates[0]) + '--to--' + fmt(dates[dates.length-1]) + '.' + ext;
+  alert('Warning: Dates are non-contiguous (gaps detected). File prefixed with "Broken" — review before database import.');
+  return 'BrokenDaily' + dept + 'Sales-' + dates[0].getFullYear() + '--' + dates.map(slash).join('-') + '.' + ext;
+}
+
+// ── Export ─────────────────────────────────────────────────────
+function doExport(type) {
+  if (!allRecords.length) return;
+  const filename = buildFilename(type);
+  // Exclude non-roster names from export (if roster is empty, export everyone)
+  const exportRecords = roster.length === 0
+    ? allRecords
+    : allRecords.filter(r => onRoster(r.lastName, r.firstName));
+  const excluded = allRecords.length - exportRecords.length;
+  if (excluded > 0) {
+    const excList = allRecords
+      .filter(r => !onRoster(r.lastName, r.firstName))
+      .map(r => {
+        const d = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '?';
+        return '  ' + r.lastName + ', ' + r.firstName
+          + ' (' + d + ') — Cust:' + r.custNum + ' SP$:' + r.spSales.toFixed(2) + ' SP%:' + (r.spPct<1?(r.spPct*100).toFixed(2):r.spPct.toFixed(2)) + '%';
+      }).join('\n');
+    if (!confirm(excluded + ' row(s) not on the roster will be EXCLUDED:\n\n' + excList + '\n\nContinue?')) return;
+  } else if (roster.length === 0) {
+    if (!confirm('No roster set — exporting all ' + allRecords.length + ' rows. Continue?')) return;
+  }
+  if (type === 'csv') {
+    const header = 'Date,Store,Dept,Last Name,First Name,Cust #,SP Qty,SP $,SP %';
+    // Sort latest→oldest, then group by date with separator rows between groups
+    const sorted = [...exportRecords].sort((a,b) => (b.date||0) - (a.date||0));
+    const lines  = [];
+    let lastDate = null;
+    sorted.forEach(r => {
+      const d = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '';
+      if (lastDate !== null && d !== lastDate) {
+        // Separator row between date groups
+        lines.push('"---","---","---","---","---","---","---","---","---"');
+      }
+      lastDate = d;
+      {
+      const d   = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '';
+      const pct2 = r.spPct < 1 ? (r.spPct * 100).toFixed(4) : r.spPct.toFixed(4);
+        lines.push([d, r.store, r.dept, r.lastName, r.firstName, r.custNum, r.spQty, r.spSales.toFixed(2), pct2]
+          .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+      }
+    });
+    const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv' });
+    dl(blob, filename);
+  } else {
+    const header = ['Date','Store','Dept','Last Name','First Name','Cust #','SP Qty','SP $','SP %'];
+    const sortedX = [...exportRecords].sort((a,b) => (b.date||0) - (a.date||0));
+    const wsRows = [];
+    let lastDateX = null;
+    sortedX.forEach(r => {
+      const d   = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '';
+      if (lastDateX !== null && d !== lastDateX) {
+        wsRows.push(['---','---','---','---','---','---','---','---','---']); // separator
+      }
+      lastDateX = d;
+      {
+      const d   = r.date ? (r.date.getMonth()+1) + '/' + r.date.getDate() + '/' + r.date.getFullYear() : '';
+        const pct = r.spPct < 1 ? parseFloat((r.spPct * 100).toFixed(4)) : r.spPct;
+        wsRows.push([d, r.store, r.dept, r.lastName, r.firstName, r.custNum, r.spQty, r.spSales, pct]);
+      }
+    });
+    const wsData = [header, ...wsRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, filename);
+  }
+}
+
+function dl(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: filename }).click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Save to Database ────────────────────────────────────────────
+// ================================================================
+// DATABASE STUB — replace with real API call when ready.
+// POST allRecords as JSON. See record schema in HTML comment above.
+// ================================================================
+async function saveToDb() {
+  if (!allRecords.length) return;
+  const exportRecordsDb = allRecords.filter(r => onRoster(r.lastName, r.firstName));
+  const dbExcluded = allRecords.length - exportRecordsDb.length;
+  let dbMsg = 'Save ' + exportRecordsDb.length + ' records to database?\nFilename: ' + buildFilename('csv');
+  if (dbExcluded > 0) {
+    const excLines = allRecords
+      .filter(r => !onRoster(r.lastName, r.firstName))
+      .map(r => {
+        const d = r.date ? (r.date.getMonth()+1)+'/'+r.date.getDate()+'/'+r.date.getFullYear() : '?';
+        return '  ' + r.lastName + ', ' + r.firstName + ' (' + d + ')';
+      }).join('\n');
+    dbMsg += '\n\n' + dbExcluded + ' excluded (not on roster):\n' + excLines;
+  }
+  if (!confirm(dbMsg)) return;
+  const btn = document.getElementById('btn-db');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    // ── Replace below with real fetch when database is ready ──────
+    await new Promise(r => setTimeout(r, 700)); // simulated
+    // ─────────────────────────────────────────────────────────────
+    btn.textContent = '✓ Saved';
+    btn.classList.add('done');
+    doExport('csv'); // also download a local copy
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Save to Database';
+    alert('Error: ' + e.message);
+  }
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Clear loaded data ──────────────────────────────────────────
+function clearData() {
+  if (!allRecords.length) return;
+  const preview = allRecords.slice(0, 15).map(r => {
+    const d = r.date ? (r.date.getMonth()+1)+'/'+r.date.getDate()+'/'+r.date.getFullYear() : '?';
+    return '  ' + r.lastName + ', ' + r.firstName + ' — ' + d;
+  }).join('\n') + (allRecords.length > 15 ? '\n  ... and ' + (allRecords.length-15) + ' more' : '');
+  if (!confirm('Clear all loaded data?\n\n' + allRecords.length + ' rows:\n\n' + preview + '\n\nMake sure you have exported before clearing.')) return;
+  allRecords  = [];
+  loadedFiles = [];
+  document.getElementById('log-box').style.display    = 'none';
+  document.getElementById('prog-wrap').style.display  = 'none';
+  document.getElementById('results-card').style.display = 'none';
+  const pf = document.getElementById('prog-fill');
+  if (pf) { pf.style.width = '0%'; pf.className = 'prog-fill prog-blue'; }
+  const btnDb = document.getElementById('btn-db');
+  if (btnDb) { btnDb.disabled=false; btnDb.textContent='Save to Database'; btnDb.classList.remove('done'); }
+}
+
+// Init
+renderRoster();
+updateDropCard();
+</script>
+</body>
+</html>
