@@ -1,4 +1,4 @@
-window.EmployeeLine = (function() {
+window.EmployeeLinePage = (function() {
   let DATA = {
   "employee": {
     "id": 43,
@@ -307,6 +307,8 @@ window.EmployeeLine = (function() {
   ]
 };
   var EMPLOYEE_DATA = DATA;
+  var currentPeriod = '2w';
+  var isRecUpload = false;
 
 // Days-off indices (0-based, 14-day array) — used by SVG builders for tick styling
 const DAYS_OFF = [0, 5, 9, 12];
@@ -792,6 +794,8 @@ const CHART_TYPE = 'line';
 
 
 
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='2w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
+
 function renderApp() {
   const emp = EMPLOYEE_DATA.employee;
   const per = EMPLOYEE_DATA.period;
@@ -807,12 +811,7 @@ function renderApp() {
         <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
         <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
         <div class="ppills">
-          <button class="pp rec">Rec.Upload</button><div class="pdiv"></div>
-          <button class="pp">3d</button><button class="pp">5d</button><div class="pdiv"></div>
-          <button class="pp">1w</button><button class="pp on">2w</button>
-          <button class="pp">4w</button><button class="pp">8w</button>
-          <button class="pp">12w</button><button class="pp">18w</button>
-          <button class="pp">26w</button>
+          ${window.GS.buildPills(currentPeriod, 'EmployeeLinePage.setPeriod', isRecUpload)}
         </div>
       </div>
       <div class="tb-r">
@@ -890,12 +889,14 @@ renderApp();
   window.toggleGoalLines = toggleGoalLines;
   window.toggleAcc = toggleAcc;
   window.setMM = setMM;
+  window.EmployeeLinePage.setPeriod = setPeriod;
 
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();

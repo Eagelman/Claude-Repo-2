@@ -226,6 +226,7 @@ window.TrifectaPage = (function() {
 // ================================================================
 // STATE
 // ================================================================
+var currentPeriod = '4w'; var isRecUpload = false;
 let activeSubView     = 'overview';  // 'overview' | 'export'
 let namesVisible      = false;       // top performers rank 6+ blur
 let lbNamesVisible    = false;       // leaderboard rank 6+ blur
@@ -267,6 +268,8 @@ function addAudit(type, detail, payload) {
 // ================================================================
 // HELPERS
 // ================================================================
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='4w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
+
 function calcScore(emp) {
   const f = TRIFECTA_DATA.formula;
   return emp.trifectas.reduce((sum, t) => {
@@ -745,14 +748,16 @@ function renderApp() {
     <div class="topbar">
       <div class="tb-title">Trifecta &mdash; ${activeSubView==='export'?'Export':'Overview'}</div>
       <div class="tb-sep"></div>
+      <div class="togs">
+        <button class="tog ${activeSubView==='overview'?'on':''}" onclick="setSubView('overview')">&#10022; Overview</button>
+        <button class="tog ${activeSubView==='export'?'on':''}" onclick="setSubView('export')">&#8595; Export</button>
+      </div>
+      <div class="tb-sep"></div>
       <div class="pbar">
         <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
         <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
         <div class="ppills">
-          <button class="pp rec">Rec. Upload</button><div class="pdiv"></div>
-          <button class="pp">1w</button><button class="pp">2w</button>
-          <button class="pp on">4w</button><button class="pp">8w</button>
-          <button class="pp">12w</button>
+          ${window.GS.buildPills(currentPeriod, 'TrifectaPage.setPeriod', isRecUpload)}
         </div>
       </div>
     </div>
@@ -1172,37 +1177,39 @@ function cancelLbReveal() {
 }
 
 // ── Expose inline event handlers to window ────────────────────
-  window.setSubView = typeof setSubView !== 'undefined' ? setSubView : function(){};
-  window.startReveal = typeof startReveal !== 'undefined' ? startReveal : function(){};
-  window.cancelReveal = typeof cancelReveal !== 'undefined' ? cancelReveal : function(){};
-  window.startLbReveal = typeof startLbReveal !== 'undefined' ? startLbReveal : function(){};
-  window.cancelLbReveal = typeof cancelLbReveal !== 'undefined' ? cancelLbReveal : function(){};
-  window.toggleFormulaEditor = typeof toggleFormulaEditor !== 'undefined' ? toggleFormulaEditor : function(){};
-  window.saveFormula = typeof saveFormula !== 'undefined' ? saveFormula : function(){};
-  window.resetFormula = typeof resetFormula !== 'undefined' ? resetFormula : function(){};
-  window.toggleGcSel = typeof toggleGcSel !== 'undefined' ? toggleGcSel : function(){};
-  window.selectAllGc = typeof selectAllGc !== 'undefined' ? selectAllGc : function(){};
-  window.clearSelGc = typeof clearSelGc !== 'undefined' ? clearSelGc : function(){};
-  window.updateGcNote = typeof updateGcNote !== 'undefined' ? updateGcNote : function(){};
-  window.removeGc = typeof removeGc !== 'undefined' ? removeGc : function(){};
-  window.startPrintFlow = typeof startPrintFlow !== 'undefined' ? startPrintFlow : function(){};
-  window.doGcExport = typeof doGcExport !== 'undefined' ? doGcExport : function(){};
-  window.exportLeaderboard = typeof exportLeaderboard !== 'undefined' ? exportLeaderboard : function(){};
-  window.exportDistribution = typeof exportDistribution !== 'undefined' ? exportDistribution : function(){};
-  window.toggleAudit = typeof toggleAudit !== 'undefined' ? toggleAudit : function(){};
-  window.viewAuditPdf = typeof viewAuditPdf !== 'undefined' ? viewAuditPdf : function(){};
-  window.exportAuditCsv = typeof exportAuditCsv !== 'undefined' ? exportAuditCsv : function(){};
-  window.submitPin = typeof submitPin !== 'undefined' ? submitPin : function(){};
-  window.startDoneHold = typeof startDoneHold !== 'undefined' ? startDoneHold : function(){};
-  window.cancelDoneHold = typeof cancelDoneHold !== 'undefined' ? cancelDoneHold : function(){};
-  window.startArchiveHold = typeof startArchiveHold !== 'undefined' ? startArchiveHold : function(){};
-  window.cancelArchiveHold = typeof cancelArchiveHold !== 'undefined' ? cancelArchiveHold : function(){};
+  window.setSubView = setSubView;
+  window.startReveal = startReveal;
+  window.cancelReveal = cancelReveal;
+  window.startLbReveal = startLbReveal;
+  window.cancelLbReveal = cancelLbReveal;
+  window.toggleFormulaEditor = toggleFormulaEditor;
+  window.saveFormula = saveFormula;
+  window.resetFormula = resetFormula;
+  window.toggleGcSel = toggleGcSel;
+  window.selectAllGc = selectAllGc;
+  window.clearSelGc = clearSelGc;
+  window.updateGcNote = updateGcNote;
+  window.removeGc = removeGc;
+  window.startPrintFlow = startPrintFlow;
+  window.doGcExport = doGcExport;
+  window.exportLeaderboard = exportLeaderboard;
+  window.exportDistribution = exportDistribution;
+  window.toggleAudit = toggleAudit;
+  window.viewAuditPdf = viewAuditPdf;
+  window.exportAuditCsv = exportAuditCsv;
+  window.submitPin = submitPin;
+  window.startDoneHold = startDoneHold;
+  window.cancelDoneHold = cancelDoneHold;
+  window.startArchiveHold = startArchiveHold;
+  window.cancelArchiveHold = cancelArchiveHold;
 
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();
+window.TrifectaPage.setPeriod = window.TrifectaPage.setPeriod;

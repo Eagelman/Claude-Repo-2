@@ -7,3 +7,4 @@ pub mod points;
 pub mod trifecta;
 pub mod import;
 pub mod archive;
+pub mod files;

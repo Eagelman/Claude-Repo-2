@@ -283,7 +283,7 @@ window.ExtractorPage = (function () {
     return 'Daily' + dept + 'Sales-' + fmt(dates[0]) + '--to--' + fmt(dates[dates.length-1]) + '.' + ext;
   }
 
-  function doExport(type) {
+  async function doExport(type) {
     if (!allRecords.length) return;
     var exportRecords = roster.length === 0 ? allRecords : allRecords.filter(function(r) { return onRoster(r.lastName, r.firstName); });
     var filename = buildFilename(type);
@@ -294,10 +294,8 @@ window.ExtractorPage = (function () {
         var pct = r.spPct < 1 ? (r.spPct*100).toFixed(4) : r.spPct.toFixed(4);
         return [d,r.store,r.dept,r.lastName,r.firstName,r.custNum,r.spQty,r.spSales.toFixed(2),pct].map(function(v) { return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
       });
-      var blob = new Blob([[header].concat(lines).join('\n')], {type:'text/csv'});
-      var url = URL.createObjectURL(blob);
-      Object.assign(document.createElement('a'), {href:url, download:filename}).click();
-      URL.revokeObjectURL(url);
+      var csvContent = [header].concat(lines).join('\n');
+      await window.GS.saveWithDialog(csvContent, filename, 'text/csv', [{ name: 'CSV Files', extensions: ['csv'] }]);
     } else if (typeof XLSX !== 'undefined') {
       var hdr = ['Date','Store','Dept','Last Name','First Name','Cust #','SP Qty','SP $','SP %'];
       var wsRows = exportRecords.map(function(r) {
@@ -308,7 +306,20 @@ window.ExtractorPage = (function () {
       var ws = XLSX.utils.aoa_to_sheet([hdr].concat(wsRows));
       var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Data');
-      XLSX.writeFile(wb, filename);
+
+      if (window.GS.isTauri()) {
+        // Use dialog to pick save location, then write via Tauri
+        var path = await window.GS.saveFileDialog({
+          defaultPath: filename,
+          filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+        });
+        if (path) {
+          var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          await window.GS.writeFileBinary(path, Array.from(new Uint8Array(wbout)));
+        }
+      } else {
+        XLSX.writeFile(wb, filename);
+      }
     }
   }
 

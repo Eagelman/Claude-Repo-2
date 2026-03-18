@@ -1,4 +1,4 @@
-window.EmployeeBar = (function() {
+window.EmployeeBarPage = (function() {
   let DATA = {
   "employee": {
     "id": 43,
@@ -307,6 +307,8 @@ window.EmployeeBar = (function() {
   ]
 };
   var EMPLOYEE_DATA = DATA;
+  var currentPeriod = '2w';
+  var isRecUpload = false;
 
 // Days-off indices (0-based, 14-day array) — used by SVG builders for tick styling
 const DAYS_OFF = [0, 5, 9, 12];
@@ -782,11 +784,52 @@ function setMM(mode) {
 }
 
 
+// ── Metric summary cards ──────────────────────────────────
+function buildMetricCards() {
+  var mode = currentMode;
+  return '<div class="metric-cards">' + EMPLOYEE_DATA.metrics.map(function(m) {
+    var cls     = m.aboveMean ? 'above' : 'below';
+    var indCls  = m.aboveMean ? 'up' : 'dn';
+    var indIcon = m.aboveMean ? '&#8593; avg' : '&#8595; avg';
+    var goalCls = m.goalMet ? 'hit' : 'miss';
+    var goalIco = m.goalMet ? '&#10003;' : '&#10007;';
+    var goalTxt = m.goalMet ? 'Goal met' : 'Goal missed';
+    return '<div class="mc ' + cls + '">' +
+      '<div class="mc-lbl">' + m.label + ' (' + EMPLOYEE_DATA.period.label + ')</div>' +
+      '<div class="mc-vrow"><div class="mc-val">' + m.empVal + '</div>' +
+      '<span class="mc-ind ' + indCls + '">' + indIcon + '</span></div>' +
+      '<div class="mc-avg">Store ' + (mode === 'median' ? 'median' : 'avg') + ': ' + m.storeAvg + '</div>' +
+      '<div class="mc-goal ' + goalCls + '"><span class="mc-goal-ico">' + goalIco + '</span>' +
+      '<span class="mc-goal-txt">' + goalTxt + '</span>' +
+      '<span class="mc-goal-gap">' + m.gap + '</span></div></div>';
+  }).join('') + '</div>';
+}
+
+// ── Stats table ───────────────────────────────────────────
+function buildStatsTable() {
+  var firstName = EMPLOYEE_DATA.employee.name.split(',')[1]?.trim() || EMPLOYEE_DATA.employee.name;
+  var rows = EMPLOYEE_DATA.statsTable.map(function(r) {
+    var badge = r.status === 'hit'
+      ? '<span class="badge-hit">&#10003; ' + r.gap + '</span>'
+      : '<span class="badge-miss">&#10007; ' + r.gap + '</span>';
+    return '<tr><td>' + r.metric + '</td><td><strong>' + r.empVal + '</strong></td>' +
+      '<td style="color:#D97706;font-weight:600;">' + r.avgVal + '</td>' +
+      '<td style="color:#B91C1C;font-weight:600;">' + r.goalVal + '</td>' +
+      '<td>' + badge + '</td></tr>';
+  }).join('');
+  return '<table class="stats-tbl"><thead><tr>' +
+    '<th>Metric</th><th>' + firstName + '</th>' +
+    '<th style="color:#FCD34D;">Avg</th><th style="color:#FCA5A5;">Goal</th><th>Status</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
 // ── Full render ────────────────────────────────────────────
 // chartType is fixed per page. Only #chart-grid needs to rebuild on data refresh.
 const CHART_TYPE = 'bar';
 
 
+
+function setPeriod(p) { if(p==='rec'){isRecUpload=true;currentPeriod='2w';}else{isRecUpload=false;currentPeriod=p;} renderApp(); }
 
 function renderApp() {
   const emp = EMPLOYEE_DATA.employee;
@@ -803,12 +846,7 @@ function renderApp() {
         <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
         <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
         <div class="ppills">
-          <button class="pp rec">Rec.Upload</button><div class="pdiv"></div>
-          <button class="pp">3d</button><button class="pp">5d</button><div class="pdiv"></div>
-          <button class="pp">1w</button><button class="pp on">2w</button>
-          <button class="pp">4w</button><button class="pp">8w</button>
-          <button class="pp">12w</button><button class="pp">18w</button>
-          <button class="pp">26w</button>
+          ${window.GS.buildPills(currentPeriod, 'EmployeeBarPage.setPeriod', isRecUpload)}
         </div>
       </div>
       <div class="tb-r">
@@ -875,16 +913,24 @@ renderApp();
 
 
 
-  window.togglePersonalGoal = togglePersonalGoal;
+  window.togglePersonalGoalVis = togglePersonalGoalVis;
   window.toggleGoalLines = toggleGoalLines;
   window.toggleAcc = toggleAcc;
   window.setMM = setMM;
+  window.toggleExcLock = toggleExcLock;
+  window.togglePgLock = togglePgLock;
+  window.addException = addException;
+  window.addPersonalGoal = addPersonalGoal;
+  window.saveExceptions = saveExceptions;
+  window.savePersonalGoals = savePersonalGoals;
+  window.EmployeeBarPage.setPeriod = setPeriod;
 
   return {
     init: function(params) {
       renderApp();
     },
     getData: function() { return DATA; },
-    renderApp: renderApp
+    renderApp: renderApp,
+    setPeriod: setPeriod
   };
 })();
