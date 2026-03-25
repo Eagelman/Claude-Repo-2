@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="../js/bridge.js"></script>
+
+<!-- ================================================================
+     DATA CONTRACT
+     Replace COMPARE_DATA with your DB payload, then call renderApp().
+     Shape: store, period, activeMetric, goals, storeMean, storeMedian,
+            metricDefs, employees — see object below for field details.
+     ================================================================ -->
+<script>
+const COMPARE_DATA = {
+  "store": {
+    "id": 141,
+    "name": "Store 141"
+  },
+  "period": {
+    "label": "2 weeks",
+    "from": "Mar 1, 2026",
+    "to": "Mar 14, 2026",
+    "days": 14
+  },
+  "activeMetric": "sp_pct",
+  "goals": {
+    "sp_pct": 2.0,
+    "sp_n": 6.0,
+    "sp_d": 250,
+    "cust": 40,
+    "pts_wk": 7.0
+  },
+  "storeMean": {
+    "sp_pct": 1.84,
+    "sp_n": 4.9,
+    "sp_d": 199,
+    "cust": 38,
+    "pts_wk": 8.4
+  },
+  "storeMedian": {
+    "sp_pct": 1.79,
+    "sp_n": 4.7,
+    "sp_d": 193,
+    "cust": 37,
+    "pts_wk": 8.1
+  },
+  "metricDefs": [
+    {
+      "key": "sp_pct",
+      "label": "SP %",
+      "fmt": "pct"
+    },
+    {
+      "key": "sp_n",
+      "label": "SP #",
+      "fmt": "dec1"
+    },
+    {
+      "key": "sp_d",
+      "label": "SP $",
+      "fmt": "dollar"
+    },
+    {
+      "key": "cust",
+      "label": "Cust #",
+      "fmt": "int"
+    },
+    {
+      "key": "pts_wk",
+      "label": "Pts/wk",
+      "fmt": "dec1"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "name": "Smith, John",
+      "initials": "SJ",
+      "isSelected": true,
+      "sp_pct": 1.97,
+      "sp_n": 5.4,
+      "sp_d": 228,
+      "cust": 42,
+      "pts_wk": 10.4
+    },
+    {
+      "id": 2,
+      "name": "Chen, Amy",
+      "initials": "AC",
+      "isSelected": false,
+      "sp_pct": 2.31,
+      "sp_n": 6.8,
+      "sp_d": 267,
+      "cust": 45,
+      "pts_wk": 12.1
+    },
+    {
+      "id": 3,
+      "name": "Jones, Lisa",
+      "initials": "LJ",
+      "isSelected": false,
+      "sp_pct": 1.62,
+      "sp_n": 4.1,
+      "sp_d": 174,
+      "cust": 33,
+      "pts_wk": 6.8
+    },
+    {
+      "id": 4,
+      "name": "Park, David",
+      "initials": "DP",
+      "isSelected": false,
+      "sp_pct": 2.08,
+      "sp_n": 5.9,
+      "sp_d": 241,
+      "cust": 41,
+      "pts_wk": 9.2
+    },
+    {
+      "id": 5,
+      "name": "Torres, Maria",
+      "initials": "MT",
+      "isSelected": false,
+      "sp_pct": 1.44,
+      "sp_n": 3.7,
+      "sp_d": 158,
+      "cust": 29,
+      "pts_wk": 5.3
+    },
+    {
+      "id": 6,
+      "name": "Nguyen, Kevin",
+      "initials": "KN",
+      "isSelected": false,
+      "sp_pct": 2.19,
+      "sp_n": 6.3,
+      "sp_d": 255,
+      "cust": 44,
+      "pts_wk": 11.0
+    },
+    {
+      "id": 7,
+      "name": "Brown, Sarah",
+      "initials": "SB",
+      "isSelected": false,
+      "sp_pct": 1.78,
+      "sp_n": 4.6,
+      "sp_d": 193,
+      "cust": 37,
+      "pts_wk": 7.9
+    },
+    {
+      "id": 8,
+      "name": "Kim, James",
+      "initials": "JK",
+      "isSelected": false,
+      "sp_pct": 1.91,
+      "sp_n": 5.2,
+      "sp_d": 215,
+      "cust": 40,
+      "pts_wk": 8.7
+    },
+    {
+      "id": 9,
+      "name": "Patel, Priya",
+      "initials": "PP",
+      "isSelected": false,
+      "sp_pct": 2.44,
+      "sp_n": 7.2,
+      "sp_d": 288,
+      "cust": 48,
+      "pts_wk": 13.6
+    },
+    {
+      "id": 10,
+      "name": "Wilson, Tom",
+      "initials": "WT",
+      "isSelected": false,
+      "sp_pct": 1.55,
+      "sp_n": 3.9,
+      "sp_d": 166,
+      "cust": 31,
+      "pts_wk": 5.9
+    },
+    {
+      "id": 11,
+      "name": "Davis, Rachel",
+      "initials": "RD",
+      "isSelected": false,
+      "sp_pct": 2.02,
+      "sp_n": 5.7,
+      "sp_d": 234,
+      "cust": 43,
+      "pts_wk": 9.8
+    },
+    {
+      "id": 12,
+      "name": "Lee, Michael",
+      "initials": "ML",
+      "isSelected": false,
+      "sp_pct": 1.7,
+      "sp_n": 4.4,
+      "sp_d": 183,
+      "cust": 35,
+      "pts_wk": 7.2
+    }
+  ]
+};
+</script>
+
+<style>
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  --ink:      #0B1220;
+  --ink-md:   #1E2D45;
+  --blue:     #1652E8;
+  --blue-lt:  #E3EEFE;
+  --blue-dim: #A9C3FB;
+  --gold:     #D97706;   /* mean / median reference line */
+  --red:      #B91C1C;   /* goal line (dashed) */
+  --green-dk: #065F34;
+  --sl:       #64748B;
+  --sl-lt:    #94A3B8;
+  --sl-dim:   #CBD5E1;
+  --sl-bg:    #F1F5F9;
+  --wh:       #FFFFFF;
+  --page:     #E8EEF7;
+  --sbw:210px; --snw:158px; --tbh:50px;
+  --r4:4px; --r8:8px; --r10:10px; --r14:14px;
+  --s1: 0 1px 3px rgba(11,18,32,.09), 0 1px 2px rgba(11,18,32,.05);
+  --s3: 0 8px 28px rgba(11,18,32,.13), 0 2px 6px rgba(11,18,32,.07);
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+body { font-family:'DM Sans',sans-serif; font-size:13px;
+        background:var(--page); color:var(--ink); line-height:1.5; }
+
+/* ── Page & app shell ─────────────────────────────────────── */
+.screen { padding:32px; }
+.slbl { font-family:'DM Mono',monospace; font-size:10px; font-weight:500;
+         color:var(--blue); letter-spacing:.10em; text-transform:uppercase;
+         background:var(--blue-lt); border:1px solid var(--blue-dim);
+         display:inline-block; padding:3px 10px; border-radius:20px; margin-bottom:10px; }
+.app { width:100%; border-radius:var(--r14); overflow:hidden;
+        box-shadow:var(--s3), 0 0 0 1px rgba(11,18,32,.10);
+        display:flex; flex-direction:column; height:870px; background:var(--wh); }
+.chrome { height:38px; background:var(--ink); display:flex;
+           align-items:center; padding:0 14px; flex-shrink:0; }
+.cdots { display:flex; gap:7px; }
+.cdot  { width:12px; height:12px; border-radius:50%; }
+.cdr { background:#FF5F57; } .cdy { background:#FEBC2E; } .cdg { background:#28C840; }
+.ctitle { flex:1; text-align:center; font-family:'DM Mono',monospace;
+           font-size:10px; color:rgba(255,255,255,.28); letter-spacing:.06em; }
+.cspace { width:72px; }
+.shell { flex:1; display:flex; overflow:hidden; }
+
+/* ── Global sidebar ───────────────────────────────────────── */
+.gsb { width:var(--sbw); background:var(--ink-md);
+        display:flex; flex-direction:column; flex-shrink:0; }
+.gsb-brand { height:var(--tbh); padding:0 15px; display:flex; align-items:center;
+              gap:9px; border-bottom:1px solid rgba(255,255,255,.07); }
+.gsb-icon  { width:28px; height:28px; border-radius:var(--r8); background:var(--blue);
+              display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gsb-name  { font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
+              color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gsb-sub   { font-size:10px; color:rgba(255,255,255,.38); }
+.gsb-nav   { flex:1; padding:7px 0; overflow-y:auto; }
+.gsb-sec   { font-size:9px; font-weight:700; letter-spacing:.13em;
+              text-transform:uppercase; color:rgba(255,255,255,.25); padding:11px 15px 3px; }
+.gsb-item  { display:flex; align-items:center; gap:8px; padding:7px 15px;
+              font-size:12px; font-weight:500; color:rgba(255,255,255,.42);
+              cursor:pointer; white-space:nowrap; }
+.gsb-item:hover { background:rgba(255,255,255,.06); color:rgba(255,255,255,.72); }
+.gsb-item.on { background:rgba(22,82,232,.28); color:#fff;
+                border-right:2.5px solid #7BA2F8; }
+.gsb-ico   { font-size:12px; width:15px; text-align:center; flex-shrink:0; }
+.gsb-foot  { padding:9px 15px; border-top:1px solid rgba(255,255,255,.07);
+              font-size:10px; color:rgba(255,255,255,.25); }
+
+/* ── Analytics sub-nav ────────────────────────────────────── */
+.an-shell { flex:1; display:flex; overflow:hidden; min-width:0; }
+.sn { width:var(--snw); background:var(--sl-bg);
+       border-right:1px solid var(--sl-dim);
+       flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+.sn-hdr  { height:var(--tbh); padding:0 13px; display:flex; align-items:center;
+            border-bottom:1px solid var(--sl-dim); font-family:'Syne',sans-serif;
+            font-size:10px; font-weight:700; color:var(--sl);
+            letter-spacing:.09em; text-transform:uppercase; }
+.sn-body { flex:1; padding:6px 0; overflow-y:auto; }
+.sn-grp  { font-size:9px; font-weight:700; letter-spacing:.11em;
+            text-transform:uppercase; color:var(--sl-lt); padding:9px 12px 3px; }
+.sn-item { display:flex; align-items:center; gap:7px; padding:6px 12px;
+            font-size:11px; font-weight:500; color:var(--sl);
+            cursor:pointer; border-left:2px solid transparent; white-space:nowrap; }
+.sn-item:hover { background:var(--blue-lt); color:var(--blue); }
+.sn-item.on { background:var(--blue-lt); color:var(--blue);
+               border-left-color:var(--blue); font-weight:600; }
+.sn-ico { font-size:11px; width:13px; text-align:center; flex-shrink:0; }
+
+/* ── Main panel ───────────────────────────────────────────── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+.topbar { height:var(--tbh); background:var(--wh);
+           border-bottom:1px solid var(--sl-dim);
+           display:flex; align-items:center; gap:10px;
+           padding:0 18px; flex-shrink:0; overflow:hidden; }
+.tb-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700;
+             color:var(--ink); white-space:nowrap; }
+.tb-sep   { width:1px; height:18px; background:var(--sl-dim); flex-shrink:0; }
+.tb-r     { margin-left:auto; display:flex; align-items:center;
+             gap:7px; flex-shrink:0; }
+.pbar  { display:flex; align-items:center; gap:3px; background:var(--sl-bg);
+          border:1px solid var(--sl-dim); border-radius:22px; padding:3px; }
+.pnav  { width:22px; height:22px; border-radius:50%; background:var(--wh);
+          border:1px solid var(--sl-dim); display:flex; align-items:center;
+          justify-content:center; cursor:pointer; font-size:11px;
+          color:var(--sl); flex-shrink:0; }
+.pdate { font-family:'DM Mono',monospace; font-size:10px; color:var(--blue);
+          background:var(--blue-lt); border:1px solid var(--blue-dim);
+          border-radius:var(--r4); padding:2px 8px; flex-shrink:0; white-space:nowrap; }
+.ppills { display:flex; gap:0; }
+.pp    { padding:3px 8px; font-size:10px; font-weight:500; border-radius:13px;
+          cursor:pointer; color:var(--sl); background:transparent;
+          border:none; white-space:nowrap; font-family:'DM Sans',sans-serif; }
+.pp:hover { background:var(--wh); }
+.pp.on  { background:var(--blue); color:#fff; font-weight:600; }
+.pp.rec { color:var(--green-dk); border:1px solid #6EE7B7; border-radius:13px;
+           background:rgba(5,150,105,.08); font-weight:600; }
+.pdiv  { width:1px; height:13px; background:var(--sl-dim);
+          margin:0 2px; align-self:center; }
+
+/* ── Content area
+     overflow:visible is intentional — prevents chart header text
+     descenders (g, y, p) from being clipped by the container edge.
+     Scrolling is handled by .chart-area below. ───────────────── */
+.content { flex:1; overflow:visible; display:flex; flex-direction:column;
+            padding:14px 18px; gap:10px; min-width:0; }
+
+/* ── Controls bar ─────────────────────────────────────────── */
+.controls { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.metric-pills { display:flex; gap:4px; }
+.mpill { padding:5px 12px; font-size:11px; font-weight:600; border-radius:20px;
+          cursor:pointer; border:1.5px solid var(--sl-dim); background:var(--wh);
+          color:var(--sl); white-space:nowrap; font-family:'DM Sans',sans-serif;
+          transition:all .15s; }
+.mpill:hover { border-color:var(--blue-dim); color:var(--blue); }
+.mpill.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+.ctrl-sep { width:1px; height:20px; background:var(--sl-dim); }
+.chart-togs { display:flex; border:1px solid var(--sl-dim);
+               border-radius:var(--r4); overflow:hidden; }
+.ct { padding:5px 10px; font-size:11px; font-weight:500; background:var(--wh);
+       border:none; border-right:1px solid var(--sl-dim); cursor:pointer;
+       color:var(--sl); white-space:nowrap; font-family:'DM Sans',sans-serif; }
+.ct:last-child { border-right:none; }
+.ct.on { background:var(--blue); color:#fff; font-weight:600; }
+.sort-pill { margin-left:auto; display:flex; align-items:center; gap:5px;
+              padding:5px 10px; background:var(--sl-bg); border:1px solid var(--sl-dim);
+              border-radius:var(--r4); font-size:10px; font-weight:600; color:var(--sl);
+              cursor:pointer; white-space:nowrap; font-family:'DM Sans',sans-serif; }
+.sort-pill:hover { background:var(--blue-lt); color:var(--blue); }
+.sort-pill.on { background:var(--blue-lt); border-color:var(--blue-dim); color:var(--blue); }
+
+/* ── Reference legend ─────────────────────────────────────── */
+.ref-legend { display:flex; align-items:center; gap:8px; padding:7px 12px;
+               background:var(--sl-bg); border:1px solid var(--sl-dim);
+               border-radius:var(--r8); flex-shrink:0; overflow:hidden; }
+.rl-item { display:flex; align-items:center; gap:5px; font-size:10px;
+            font-weight:600; white-space:nowrap; flex-shrink:0; }
+.rl-box  { width:11px; height:11px; border-radius:2px; flex-shrink:0; }
+.rl-sep  { width:1px; height:14px; background:var(--sl-dim); flex-shrink:0; }
+.rl-note { font-size:10px; color:var(--sl-lt); white-space:nowrap; flex-shrink:0; }
+
+/* ── Scrollable chart area ────────────────────────────────── */
+.chart-area { flex:1; overflow-y:auto; min-height:0; background:var(--wh);
+               border:1px solid var(--sl-dim); border-radius:var(--r10);
+               padding:16px 18px; box-shadow:var(--s1); }
+.chart-area::-webkit-scrollbar { width:4px; }
+.chart-area::-webkit-scrollbar-thumb { background:var(--sl-dim); border-radius:2px; }
+
+/* ── Chart header (no border — prevents descender clipping) ── */
+.chart-header { display:flex; align-items:center; margin-bottom:10px;
+                 padding-bottom:8px; gap:10px; }
+.chart-hdr-lbl { font-family:'Syne',sans-serif; font-size:11px; font-weight:700;
+                  color:var(--ink); flex:1; line-height:1.6; }
+.ch-meta { font-size:10px; font-weight:700; font-family:'DM Mono',monospace; }
+
+/* ── Range axis tick labels ───────────────────────────────── */
+.range-axis  { display:grid; grid-template-columns:140px 1fr 64px;
+                gap:12px; margin-bottom:6px; }
+.range-track { display:flex; justify-content:space-between; }
+.range-label { font-family:'DM Mono',monospace; font-size:8px; color:var(--sl-lt); }
+
+/* ── Employee row ─────────────────────────────────────────── */
+.emp-row { display:grid; grid-template-columns:140px 1fr 64px;
+            align-items:center; gap:12px; padding:5px 0; }
+.emp-name { display:flex; align-items:center; gap:7px; min-width:0; }
+.emp-init { width:24px; height:24px; border-radius:50%; display:flex;
+             align-items:center; justify-content:center; font-size:9px;
+             font-weight:700; flex-shrink:0; font-family:'DM Mono',monospace; }
+.emp-init.sel { background:var(--blue); color:#fff; }
+.emp-init.oth { background:var(--sl-bg); color:var(--sl); border:1px solid var(--sl-dim); }
+.emp-lbl { font-size:11px; font-weight:500; overflow:hidden;
+            text-overflow:ellipsis; white-space:nowrap; color:var(--ink); }
+.emp-lbl.sel { color:var(--blue); font-weight:700; }
+.emp-val { font-family:'DM Mono',monospace; font-size:11px;
+            font-weight:700; text-align:right; white-space:nowrap; }
+.emp-val.above { color:var(--green-dk); }
+.emp-val.below { color:var(--red); }
+.emp-val.sel   { color:var(--blue); }
+
+/* ── Diverging bar ────────────────────────────────────────── */
+.div-bar  { position:relative; height:22px; display:flex;
+             align-items:center; overflow:visible; }
+/* bar fill — z-index:1 so reference lines (z-index:10) sit on top */
+.div-fill { position:absolute; height:14px; top:50%;
+             transform:translateY(-50%); border-radius:0; z-index:1; }
+
+/* ── Ranked bar ───────────────────────────────────────────── */
+.rank-bar  { position:relative; height:22px; display:flex;
+              align-items:center; overflow:visible; }
+/* bar fill — z-index:1 */
+.rank-fill { height:14px; border-radius:0; min-width:2px;
+              position:relative; z-index:1; }
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="slbl">Compare All &middot; Store 141 &middot; 2 weeks</div>
+  <div class="app" id="app-root"></div>
+</div>
+
+<script>
+// ================================================================
+// STATE
+// All UI state lives here. Changing any of these and calling
+// renderApp() (or a partial re-render fn) updates the view.
+// ================================================================
+let chartMode    = 'diverging'; // 'diverging' | 'ranked'
+let sortMode     = 'desc';      // 'desc' | 'asc' | 'name'
+let activeMetric = COMPARE_DATA.activeMetric;
+let refMode      = 'mean';      // 'mean' | 'median'
+let divCenter    = 'mean';      // diverging zero line: 'mean'|'median' → uses getRef()
+                                //                      'goal' → uses goal value
+
+// ================================================================
+// HELPERS
+// ================================================================
+
+// Format a numeric value for display based on metric format type
+function fmtVal(val, fmt) {
+  if (fmt === 'pct')    return val.toFixed(2) + '%';
+  if (fmt === 'dec1')   return val.toFixed(1);
+  if (fmt === 'dollar') return '$' + Math.round(val);
+  return Math.round(val).toString();
+}
+
+// Return the active reference value (mean or median) for a given metric key
+function getRef(key) {
+  return refMode === 'median'
+    ? COMPARE_DATA.storeMedian[key]
+    : COMPARE_DATA.storeMean[key];
+}
+
+// Return the metric definition object for a given key
+function getMetricDef(key) {
+  return COMPARE_DATA.metricDefs.find(m => m.key === key);
+}
+
+// Return employees sorted by current sortMode
+function sortedEmployees() {
+  const emps = [...COMPARE_DATA.employees];
+  if (sortMode === 'desc') return emps.sort((a,b) => b[activeMetric] - a[activeMetric]);
+  if (sortMode === 'asc')  return emps.sort((a,b) => a[activeMetric] - b[activeMetric]);
+  return emps.sort((a,b) => a.name.localeCompare(b.name));
+}
+
+// ================================================================
+// DIVERGING CHART
+// Centre line = mean/median OR goal (controlled by divCenter state).
+// Secondary marker = whichever one isn't the zero line.
+// Bars extend right (above zero) or left (below zero).
+// Reference lines are rendered as a single absolute overlay spanning
+// all rows — NOT per-row — so they appear as continuous solid lines.
+// Goal line uses repeating-linear-gradient to simulate a dashed style
+// (div elements cannot use border-style:dashed directly).
+// ================================================================
+function buildDivergingChart() {
+  const mdef   = getMetricDef(activeMetric);
+  const ref    = getRef(activeMetric);
+  const goal   = COMPARE_DATA.goals[activeMetric];
+  const emps   = sortedEmployees();
+  const refLbl = refMode === 'median' ? 'Median' : 'Mean';
+
+  // zero  = the value the centre line represents
+  // marker = the other reference shown as an offset vertical line
+  const zero      = divCenter === 'goal' ? goal : ref;
+  const marker    = divCenter === 'goal' ? ref  : goal;
+  const markerClr = divCenter === 'goal' ? 'var(--gold)' : 'var(--red)';
+  const zeroLbl   = divCenter === 'goal'
+    ? 'Goal '  + fmtVal(goal, mdef.fmt)
+    : refLbl   + ' ' + fmtVal(ref,  mdef.fmt);
+  const markerLbl = divCenter === 'goal'
+    ? refLbl   + ' ' + fmtVal(ref,  mdef.fmt)
+    : 'Goal '  + fmtVal(goal, mdef.fmt);
+
+  // Scale: max absolute deviation from zero, with 15% headroom
+  const maxDev    = Math.max(...emps.map(e => Math.abs(e[activeMetric] - zero))) * 1.15;
+  // Marker offset from centre (50%) — can be negative if marker < zero
+  const markerPct = maxDev > 0 ? ((marker - zero) / maxDev / 2 * 100) : 0;
+
+  // Goal line background (dashed via gradient — divs can't use border-style:dashed)
+  const goalDash = 'repeating-linear-gradient(to bottom,rgba(185,28,28,.85) 0px,rgba(185,28,28,.85) 6px,transparent 6px,transparent 10px)';
+
+  // Build employee rows (bars only — no per-row reference lines)
+  const rows = emps.map(e => {
+    const val     = e[activeMetric];
+    const dev     = val - zero;
+    const fillPct = maxDev > 0 ? (Math.abs(dev) / maxDev / 2 * 100) : 0;
+    const above   = dev >= 0;
+    const isSel   = e.isSelected;
+    const fillClr = isSel ? 'var(--blue)' : (above ? 'rgba(5,150,105,.65)' : 'rgba(185,28,28,.55)');
+    const left    = above ? 50 : 50 - fillPct;
+    const valCls  = isSel ? 'sel' : (above ? 'above' : 'below');
+    return `<div class="emp-row">
+      <div class="emp-name">
+        <div class="emp-init ${isSel?'sel':'oth'}">${e.initials}</div>
+        <span class="emp-lbl ${isSel?'sel':''}">${e.name}</span>
+      </div>
+      <div class="div-bar">
+        <div class="div-fill" style="left:${left.toFixed(1)}%;width:${fillPct.toFixed(1)}%;background:${fillClr};${isSel?'box-shadow:0 0 0 1.5px var(--blue-dim);':''}"></div>
+      </div>
+      <div class="emp-val ${valCls}">${fmtVal(val,mdef.fmt)}</div>
+    </div>`;
+  }).join('');
+
+  // Single overlay that spans all rows — reference lines are continuous
+  // left:152px accounts for 140px name column + 12px gap
+  // The zero line colour is gold (mean/median) or red-dashed (goal)
+  const zeroLineStyle = divCenter === 'goal'
+    ? `background:${goalDash};`
+    : `background:var(--gold);opacity:.9;`;
+  const markerLineStyle = divCenter === 'goal'
+    ? `background:var(--gold);opacity:.9;`
+    : `background:${goalDash};`;
+
+  const overlay = `<div style="position:absolute;top:0;bottom:0;left:152px;right:76px;pointer-events:none;z-index:10;overflow:hidden;">
+      <div style="position:absolute;top:0;bottom:0;width:2px;left:50%;transform:translateX(-50%);${zeroLineStyle}"></div>
+      <div style="position:absolute;top:0;bottom:0;width:2px;transform:translateX(-50%);left:${(50+markerPct).toFixed(1)}%;${markerLineStyle}"></div>
+    </div>`;
+
+  const ticks = [-1,-0.5,0,0.5,1].map(t => fmtVal(zero + t*maxDev, mdef.fmt));
+
+  return `
+    <div class="chart-header">
+      <span class="chart-hdr-lbl">${mdef.label} &mdash; diverging from ${zeroLbl}</span>
+      <span class="ch-meta" style="color:${markerClr};">&#9135; ${markerLbl}</span>
+    </div>
+    <div class="range-axis"><div></div>
+      <div class="range-track">${ticks.map(v=>`<span class="range-label">${v}</span>`).join('')}</div>
+    <div></div></div>
+    <div style="position:relative;">
+      ${overlay}
+      ${rows}
+    </div>`;
+}
+
+// ================================================================
+// RANKED CHART
+// All bars from left, sorted by value.
+// Goal (dashed red) and mean/median (solid gold) as continuous
+// overlay lines — same single-overlay approach as diverging.
+// ================================================================
+function buildRankedChart() {
+  const mdef   = getMetricDef(activeMetric);
+  const ref    = getRef(activeMetric);
+  const goal   = COMPARE_DATA.goals[activeMetric];
+  const emps   = sortedEmployees();
+  const refLbl = refMode === 'median' ? 'Median' : 'Mean';
+  // Scale: max value with 8% headroom
+  const maxVal = Math.max(...emps.map(e => e[activeMetric])) * 1.08;
+
+  const goalDash = 'repeating-linear-gradient(to bottom,rgba(185,28,28,.85) 0px,rgba(185,28,28,.85) 6px,transparent 6px,transparent 10px)';
+
+  const rows = emps.map(e => {
+    const val     = e[activeMetric];
+    const fillPct = val / maxVal * 100;
+    const above   = val >= ref;
+    const isSel   = e.isSelected;
+    const fillClr = isSel ? 'var(--blue)' : (above ? 'rgba(5,150,105,.65)' : 'rgba(185,28,28,.55)');
+    const valCls  = isSel ? 'sel' : (above ? 'above' : 'below');
+    return `<div class="emp-row">
+      <div class="emp-name">
+        <div class="emp-init ${isSel?'sel':'oth'}">${e.initials}</div>
+        <span class="emp-lbl ${isSel?'sel':''}">${e.name}</span>
+      </div>
+      <div class="rank-bar">
+        <div class="rank-fill" style="width:${fillPct.toFixed(1)}%;background:${fillClr};${isSel?'box-shadow:0 0 0 1.5px var(--blue-dim);':''}"></div>
+      </div>
+      <div class="emp-val ${valCls}">${fmtVal(val,mdef.fmt)}</div>
+    </div>`;
+  }).join('');
+
+  // Single overlay for both goal and mean/median lines
+  const overlay = `<div style="position:absolute;top:0;bottom:0;left:152px;right:76px;pointer-events:none;z-index:10;overflow:hidden;">
+      <div style="position:absolute;top:0;bottom:0;width:2px;left:${(goal/maxVal*100).toFixed(1)}%;transform:translateX(-50%);background:${goalDash};"></div>
+      <div style="position:absolute;top:0;bottom:0;width:2px;left:${(ref/maxVal*100).toFixed(1)}%;transform:translateX(-50%);background:var(--gold);opacity:.9;"></div>
+    </div>`;
+
+  const ticks = [0,0.25,0.5,0.75,1].map(t => fmtVal(t*maxVal, mdef.fmt));
+
+  return `
+    <div class="chart-header">
+      <span class="chart-hdr-lbl">${mdef.label} &mdash; ranked ${sortMode==='desc'?'&#8595; high':sortMode==='asc'?'&#8593; low':'A&#8211;Z'}</span>
+      <span class="ch-meta" style="color:var(--gold);">&#9135; ${refLbl} ${fmtVal(ref,mdef.fmt)}</span>
+      <span class="ch-meta" style="color:var(--red);">&#9135; Goal ${fmtVal(goal,mdef.fmt)}</span>
+    </div>
+    <div class="range-axis"><div></div>
+      <div class="range-track">${ticks.map(v=>`<span class="range-label">${v}</span>`).join('')}</div>
+    <div></div></div>
+    <div style="position:relative;">
+      ${overlay}
+      ${rows}
+    </div>`;
+}
+
+// ================================================================
+// LEGEND BAR
+// Shows: Smith swatch, above/below swatches, goal (dashed) + mean
+// lines, live counts, Mean/Median toggle, Zero= toggle (div only).
+// ================================================================
+function buildLegend() {
+  const mdef     = getMetricDef(activeMetric);
+  const ref      = getRef(activeMetric);
+  const goal     = COMPARE_DATA.goals[activeMetric];
+  const total    = COMPARE_DATA.employees.length;
+  const aboveRef = COMPARE_DATA.employees.filter(e => e[activeMetric] >= ref).length;
+  const metGoal  = COMPARE_DATA.employees.filter(e => e[activeMetric] >= goal).length;
+  const refLbl   = refMode === 'median' ? 'Median' : 'Mean';
+
+  // divCenter toggle only appears in diverging mode
+  const divToggle = chartMode === 'diverging' ? `
+    <div class="rl-sep"></div>
+    <span style="font-size:9px;font-weight:700;color:var(--sl);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0;">Zero&nbsp;=</span>
+    <div class="chart-togs" style="flex-shrink:0;">
+      <button class="ct ${divCenter!=='goal'?'on':''}" onclick="setDivCenter('mean')" style="padding:3px 8px;font-size:9px;">${refLbl}</button>
+      <button class="ct ${divCenter==='goal'?'on':''}" onclick="setDivCenter('goal')" style="padding:3px 8px;font-size:9px;">Goal</button>
+    </div>` : '';
+
+  return `<div class="ref-legend">
+    <div class="rl-item"><div class="rl-box" style="background:var(--blue);"></div><span style="color:var(--blue);">Smith</span></div>
+    <div class="rl-item"><div class="rl-box" style="background:rgba(5,150,105,.65);"></div><span style="color:var(--green-dk);">Above ${refLbl}</span></div>
+    <div class="rl-item"><div class="rl-box" style="background:rgba(185,28,28,.55);"></div><span style="color:var(--red);">Below ${refLbl}</span></div>
+    <div class="rl-sep"></div>
+    <div class="rl-item"><div style="width:16px;height:2px;border-top:2px dashed rgba(185,28,28,.85);background:transparent;"></div><span style="color:var(--red);">Goal ${fmtVal(goal,mdef.fmt)}</span></div>
+    <div class="rl-item"><div style="width:16px;height:2px;background:var(--gold);opacity:.9;"></div><span style="color:var(--gold);">${refLbl} ${fmtVal(ref,mdef.fmt)}</span></div>
+    <div class="rl-sep"></div>
+    <span class="rl-note">${aboveRef}/${total} above ${refLbl.toLowerCase()} &middot; ${metGoal}/${total} met goal</span>
+    <div class="rl-sep" style="margin-left:auto;"></div>
+    <span style="font-size:9px;font-weight:700;color:var(--sl);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0;">Ref&nbsp;</span>
+    <div class="chart-togs" style="flex-shrink:0;">
+      <button class="ct ${refMode==='mean'?'on':''}" onclick="setRefMode('mean')" style="padding:3px 8px;font-size:9px;">Mean</button>
+      <button class="ct ${refMode==='median'?'on':''}" onclick="setRefMode('median')" style="padding:3px 8px;font-size:9px;">Median</button>
+    </div>
+    ${divToggle}
+  </div>`;
+}
+
+// ── Metric pills ──────────────────────────────────────────────
+function buildMetricPills() {
+  return COMPARE_DATA.metricDefs.map(m =>
+    `<button class="mpill${m.key===activeMetric?' on':''}" onclick="setMetric('${m.key}')">${m.label}</button>`
+  ).join('');
+}
+
+// ================================================================
+// FULL RENDER
+// Rebuilds the entire app DOM from state + COMPARE_DATA.
+// Cheap partial re-renders are used for sort cycling (chart-area only).
+// ================================================================
+function renderApp() {
+  const per  = COMPARE_DATA.period;
+  const mdef = getMetricDef(activeMetric);
+
+  document.getElementById('app-root').innerHTML = `
+    <div class="shell">
+      <div class="gsb">
+        <div class="gsb-brand">
+          <div class="gsb-icon"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="7" height="9" rx="1" fill="rgba(255,255,255,.7)"/><rect x="5" y="4" width="7" height="8" rx="1" fill="#fff"/></svg></div>
+          <div><div class="gsb-name">GS Extractor</div><div class="gsb-sub">Store 141</div></div>
+        </div>
+        <div class="gsb-nav">
+          <div class="gsb-sec">Reports</div>
+          <div class="gsb-item"><span class="gsb-ico">&#8593;</span>Extractor</div>
+          <div class="gsb-item on"><span class="gsb-ico">&#128202;</span>Analytics</div>
+          <div class="gsb-item"><span class="gsb-ico">&#11088;</span>Points</div>
+          <div class="gsb-item"><span class="gsb-ico">&#8644;</span>Compare</div>
+          <div class="gsb-item"><span class="gsb-ico">&#10022;</span>Trifecta</div>
+          <div class="gsb-sec">Data</div>
+          <div class="gsb-item"><span class="gsb-ico">&#128452;</span>Archive</div>
+        </div>
+        <div class="gsb-foot">Store 141 &middot; GS Dept</div>
+      </div>
+      <div class="an-shell">
+        <div class="sn">
+          <div class="sn-hdr">Analytics</div>
+          <div class="sn-body">
+            <div class="sn-grp">Views</div>
+            <div class="sn-item"><span class="sn-ico">&#128200;</span>Overview</div>
+            <div class="sn-item"><span class="sn-ico">&#128100;</span>By employee</div>
+            <div class="sn-item on"><span class="sn-ico">&#9638;</span>Compare all</div>
+            <div class="sn-item"><span class="sn-ico">&#127919;</span>Goals</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="topbar">
+            <div class="tb-title">Compare All &mdash; ${mdef.label}</div>
+            <div class="tb-sep"></div>
+            <div class="pbar">
+              <div class="pnav">&#8249;</div><div class="pnav">&#8250;</div>
+              <span class="pdate">${per.from} &ndash; ${per.to} (${per.label})</span>
+              <div class="ppills">
+                <button class="pp rec">Rec.Upload</button><div class="pdiv"></div>
+                <button class="pp">1w</button><button class="pp on">2w</button>
+                <button class="pp">4w</button><button class="pp">8w</button><button class="pp">12w</button>
+              </div>
+            </div>
+            <div class="tb-r">
+              <button class="sort-pill${sortMode==='desc'?' on':''}" onclick="cycleSort()">
+                Sort: ${sortMode==='desc'?'&#8595; High':sortMode==='asc'?'&#8593; Low':'A&#8211;Z'}
+              </button>
+            </div>
+          </div>
+          <div class="content">
+            <div class="controls">
+              <div class="metric-pills">${buildMetricPills()}</div>
+              <div class="ctrl-sep"></div>
+              <div class="chart-togs">
+                <button class="ct${chartMode==='diverging'?' on':''}" onclick="setChartMode('diverging')">&#8596; Diverging</button>
+                <button class="ct${chartMode==='ranked'?' on':''}" onclick="setChartMode('ranked')">&#9641; Ranked</button>
+              </div>
+            </div>
+            ${buildLegend()}
+            <div class="chart-area" id="chart-area">
+              ${chartMode==='diverging' ? buildDivergingChart() : buildRankedChart()}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ================================================================
+// INTERACTIVITY
+// Each setter updates state and either fully re-renders or does a
+// targeted partial re-render for performance.
+// ================================================================
+
+// Switch active metric — full re-render (all chart + legend change)
+function setMetric(key) { activeMetric = key; renderApp(); }
+
+// Switch chart mode — full re-render
+function setChartMode(mode) { chartMode = mode; renderApp(); }
+
+// Switch mean/median reference — full re-render
+// Also resets divCenter to 'mean' if it wasn't on goal
+function setRefMode(mode) {
+  refMode = mode;
+  if (divCenter !== 'goal') divCenter = 'mean';
+  renderApp();
+}
+
+// Switch diverging zero line between mean/median and goal
+function setDivCenter(center) { divCenter = center; renderApp(); }
+
+// Cycle sort order — partial re-render (chart-area only, fast)
+function cycleSort() {
+  sortMode = sortMode === 'desc' ? 'asc' : sortMode === 'asc' ? 'name' : 'desc';
+  document.getElementById('chart-area').innerHTML =
+    chartMode === 'diverging' ? buildDivergingChart() : buildRankedChart();
+  const sp = document.querySelector('.sort-pill');
+  sp.className = 'sort-pill' + (sortMode === 'desc' ? ' on' : '');
+  sp.innerHTML = 'Sort: ' + (sortMode==='desc'?'&#8595; High':sortMode==='asc'?'&#8593; Low':'A&#8211;Z');
+}
+
+// Boot
+renderApp();
+
+// ── Period change handler (called by page-wiring.js) ─────────
+window.setPeriod = async function(periodCode, anchorDate) {
+  if (!window.GS_BRIDGE || !window.GS_BRIDGE.isTauri) return;
+  const data = await window.GS_BRIDGE.loadRecordsForPeriod(periodCode, anchorDate);
+  if (data.isEmpty) return;
+  const B = window.GS_BRIDGE;
+
+  COMPARE_DATA.period = {
+    label: data.period.label,
+    from: B.fmtDate(data.period.from),
+    to: B.fmtDate(data.period.to),
+    days: data.period.days,
+  };
+
+  // Update employees from DB records
+  const empStats = data.employeeStats;
+  COMPARE_DATA.employees = empStats.map((e, i) => ({
+    id: i + 1,
+    name: e.name,
+    initials: e.initials,
+    isSelected: i === 0,
+    sp_pct: e.avgSpPct,
+    sp_n: e.avgSpQty,
+    sp_d: e.avgSpSales,
+    cust: e.avgCust,
+    pts_wk: 0,
+  }));
+
+  // Update store mean/median
+  const keys = ['sp_pct', 'sp_n', 'sp_d', 'cust'];
+  keys.forEach(k => {
+    const prop = k === 'sp_pct' ? 'avgSpPct' : k === 'sp_n' ? 'avgSpQty' : k === 'sp_d' ? 'avgSpSales' : 'avgCust';
+    const vals = empStats.map(e => e[prop]);
+    COMPARE_DATA.storeMean[k] = B.mean(vals);
+    COMPARE_DATA.storeMedian[k] = B.median(vals);
+  });
+
+  renderApp();
+};
+</script>
+<script src="../js/page-wiring.js"></script>
+</body>
+</html>

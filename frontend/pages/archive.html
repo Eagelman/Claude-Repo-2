@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="../js/bridge.js"></script>
+<style>
+:root{--ink:#0B1220;--ink-md:#1E2D45;--blue:#1652E8;--blue-lt:#E3EEFE;--blue-dim:#A9C3FB;--green:#059669;--green-bg:#D1FAE5;--green-dk:#065F34;--sl:#64748B;--sl-lt:#94A3B8;--sl-dim:#CBD5E1;--sl-bg:#F1F5F9;--wh:#FFFFFF;--page:#E8EEF7;--r4:4px;--r8:8px;--r10:10px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;background:var(--page);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink);}
+.screen{padding:32px;max-width:900px;margin:0 auto;}
+.slbl{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--blue);letter-spacing:.10em;text-transform:uppercase;background:var(--blue-lt);border:1px solid var(--blue-dim);display:inline-block;padding:3px 10px;border-radius:20px;margin-bottom:12px;}
+.card{background:var(--wh);border:1px solid var(--sl-dim);border-radius:var(--r10);padding:20px 24px;box-shadow:0 1px 3px rgba(11,18,32,.09);margin-bottom:16px;}
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead tr{background:var(--ink-md);}
+th{color:rgba(255,255,255,.75);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+td{padding:8px 14px;border-bottom:1px solid var(--sl-bg);}
+tr:hover td{background:var(--blue-lt);}
+.btn{border:none;border-radius:var(--r4);padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-sl{background:var(--sl-bg);border:1px solid var(--sl-dim);color:var(--sl);}
+.back-link{font-size:12px;color:var(--blue);cursor:pointer;margin-bottom:16px;display:inline-block;}
+.empty{text-align:center;padding:40px;color:var(--sl-lt);font-size:14px;}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="back-link" onclick="navigateTo('extractor')">&larr; Back to Extractor</div>
+  <div class="slbl">Archive · Store 141</div>
+
+  <div class="card">
+    <div class="card-title">CSV Archive Exports</div>
+    <div id="archive-mount"><div class="empty">Loading archive...</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Database Summary</div>
+    <div id="db-summary"><div class="empty">Loading...</div></div>
+  </div>
+</div>
+
+<script>
+async function loadArchive() {
+  if (!window.GS_BRIDGE || !window.GS_BRIDGE.isTauri) {
+    document.getElementById('archive-mount').innerHTML =
+      '<div class="empty">Archive is available when running in Tauri desktop app.</div>';
+    document.getElementById('db-summary').innerHTML =
+      '<div class="empty">Database summary is available when running in Tauri desktop app.</div>';
+    return;
+  }
+
+  const B = window.GS_BRIDGE;
+
+  // Load archive log
+  try {
+    const log = await B.invoke('get_archive_log', {});
+    if (!log || log.length === 0) {
+      document.getElementById('archive-mount').innerHTML =
+        '<div class="empty">No CSV exports yet. Use the Extractor to upload and save data.</div>';
+    } else {
+      let html = '<table><thead><tr><th>Filename</th><th>Date Range</th><th>Records</th><th>Exported</th></tr></thead><tbody>';
+      for (const entry of log) {
+        html += '<tr>'
+          + '<td style="font-family:DM Mono,monospace;font-weight:500;">' + entry.filename + '</td>'
+          + '<td>' + (entry.dateFrom || '') + ' to ' + (entry.dateTo || '') + '</td>'
+          + '<td style="text-align:right;">' + (entry.recordCount || 0) + '</td>'
+          + '<td style="color:var(--sl-lt);font-size:11px;">' + (entry.createdAt || '') + '</td>'
+          + '</tr>';
+      }
+      html += '</tbody></table>';
+      document.getElementById('archive-mount').innerHTML = html;
+    }
+  } catch (e) {
+    document.getElementById('archive-mount').innerHTML =
+      '<div class="empty">Error loading archive: ' + e + '</div>';
+  }
+
+  // Load DB summary
+  try {
+    const dates = await B.invoke('get_available_dates', { store: B.STORE, dept: B.DEPT });
+    if (!dates || dates.length === 0) {
+      document.getElementById('db-summary').innerHTML =
+        '<div class="empty">No records in database yet.</div>';
+    } else {
+      document.getElementById('db-summary').innerHTML =
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+        + '<div><div style="font-size:10px;color:var(--sl);text-transform:uppercase;">Total dates</div>'
+        + '<div style="font-size:24px;font-weight:700;font-family:DM Mono,monospace;">' + dates.length + '</div></div>'
+        + '<div><div style="font-size:10px;color:var(--sl);text-transform:uppercase;">Earliest</div>'
+        + '<div style="font-size:14px;font-weight:600;">' + dates[dates.length - 1] + '</div></div>'
+        + '<div><div style="font-size:10px;color:var(--sl);text-transform:uppercase;">Latest</div>'
+        + '<div style="font-size:14px;font-weight:600;">' + dates[0] + '</div></div>'
+        + '</div>';
+    }
+  } catch (e) {
+    document.getElementById('db-summary').innerHTML =
+      '<div class="empty">Error: ' + e + '</div>';
+  }
+}
+
+loadArchive();
+</script>
+</body>
+</html>

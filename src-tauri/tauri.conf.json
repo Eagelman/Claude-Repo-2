@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicbou/tauri/refs/heads/main/crates/tauri-utils/schema.json",
+  "productName": "GS Extractor",
+  "version": "0.1.0",
+  "identifier": "com.gs-extractor.app",
+  "build": {
+    "frontendDist": "../frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "GS Extractor",
+        "width": 1440,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
