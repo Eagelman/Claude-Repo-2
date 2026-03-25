@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GS Reports — Compact Sidebar + Ribbon</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0B1220; --ink-md: #1E2D45; --blue: #2563EB; --gold: #D97706; --red: #B91C1C;
+    --green: #059669; --green-bg: #D1FAE5; --green-dk: #065F34; --red-bg: #FEE2E2;
+    --sl: #64748B; --sl-lt: #94A3B8; --sl-dim: #CBD5E1; --sl-bg: #F1F5F9; --wh: #FFFFFF; --page: #E8EEF7;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--page); color: var(--ink); }
+
+  /* ── Title Bar ── */
+  .titlebar {
+    height: 36px; background: var(--ink); display: flex; align-items: center;
+    justify-content: space-between; padding: 0 0 0 12px; user-select: none;
+    -webkit-app-region: drag; position: relative; z-index: 100;
+  }
+  .titlebar-left { display: flex; align-items: center; gap: 8px; }
+  .titlebar-icon {
+    width: 20px; height: 20px; background: var(--blue); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #fff; font-weight: 700;
+  }
+  .titlebar-text { color: #fff; font-size: 12.5px; font-weight: 500; letter-spacing: 0.2px; }
+  .titlebar-controls { display: flex; height: 100%; -webkit-app-region: no-drag; }
+  .titlebar-btn {
+    width: 46px; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; color: #94A3B8; font-size: 13px; cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .titlebar-btn:hover { background: #2a3a52; color: #fff; }
+  .titlebar-btn.close:hover { background: #c42b1c; color: #fff; }
+
+  /* ── Layout ── */
+  .app-body { display: flex; height: calc(100vh - 36px); }
+
+  /* ── Sidebar Rail ── */
+  .sidebar {
+    width: 56px; min-width: 56px; background: var(--ink-md); display: flex;
+    flex-direction: column; align-items: center; padding: 10px 0 12px; z-index: 50;
+  }
+  .sidebar-brand {
+    width: 28px; height: 28px; background: var(--blue); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #fff; font-weight: 800; font-family: 'Syne', sans-serif;
+    margin-bottom: 16px; flex-shrink: 0;
+  }
+  .sidebar-nav { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .sidebar-item {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; cursor: pointer; position: relative; transition: background 0.15s;
+    font-size: 17px; color: var(--sl-lt);
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .sidebar-item.active { background: rgba(37,99,235,0.3); color: #fff; }
+  /* Tooltip */
+  .sidebar-item::after {
+    content: attr(data-tip); position: absolute; left: calc(100% + 8px); top: 50%;
+    transform: translateY(-50%); background: var(--ink); color: #fff; font-size: 11.5px;
+    padding: 4px 10px; border-radius: 5px; white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s; z-index: 200; font-family: 'DM Sans', sans-serif;
+  }
+  .sidebar-item:hover::after { opacity: 1; }
+  .sidebar-bottom {
+    color: var(--sl-lt); font-size: 10px; font-family: 'DM Mono', monospace;
+    margin-top: auto; opacity: 0.6;
+  }
+
+  /* ── Main Column ── */
+  .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* ── Ribbon ── */
+  .ribbon { background: var(--wh); border-bottom: 1px solid var(--sl-dim); flex-shrink: 0; }
+  .ribbon-row1 {
+    height: 40px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; border-bottom: 1px solid #E2E8F0;
+  }
+  .ribbon-row1-left { display: flex; align-items: center; gap: 6px; }
+  .ribbon-page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--ink); }
+  .ribbon-sep { color: var(--sl-dim); font-size: 14px; margin: 0 4px; }
+  .ribbon-tab {
+    padding: 4px 12px; border-radius: 5px; font-size: 12.5px; font-weight: 500;
+    cursor: pointer; border: 1px solid transparent; background: none; color: var(--sl);
+    transition: all 0.15s;
+  }
+  .ribbon-tab:hover { background: var(--sl-bg); color: var(--ink); }
+  .ribbon-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .ribbon-row1-right { display: flex; align-items: center; gap: 8px; }
+  .ribbon-toggle {
+    display: flex; background: var(--sl-bg); border-radius: 6px; padding: 2px; gap: 2px;
+  }
+  .ribbon-toggle-btn {
+    padding: 3px 10px; border-radius: 4px; font-size: 11.5px; font-weight: 500;
+    cursor: pointer; border: none; background: none; color: var(--sl); transition: all 0.15s;
+  }
+  .ribbon-toggle-btn.active { background: var(--wh); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .ribbon-action {
+    display: flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 5px;
+    font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--sl-dim);
+    background: var(--wh); color: var(--sl); transition: all 0.15s;
+  }
+  .ribbon-action:hover { background: var(--sl-bg); color: var(--ink); border-color: var(--sl-lt); }
+  .ribbon-action svg { width: 13px; height: 13px; }
+
+  /* Ribbon Row 2 */
+  .ribbon-row2-wrap { position: relative; overflow: hidden; transition: max-height 0.25s ease, opacity 0.2s; max-height: 36px; opacity: 1; }
+  .ribbon-row2-wrap.collapsed { max-height: 0; opacity: 0; }
+  .ribbon-row2 {
+    height: 36px; display: flex; align-items: center; padding: 0 16px; gap: 6px;
+    font-size: 12px;
+  }
+  .period-nav {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .period-arrow {
+    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; cursor: pointer; border: none; background: none; color: var(--sl);
+    font-size: 15px; transition: background 0.12s;
+  }
+  .period-arrow:hover { background: var(--sl-bg); color: var(--ink); }
+  .period-date { font-weight: 500; color: var(--ink); margin: 0 8px; white-space: nowrap; font-size: 12px; }
+  .period-pills { display: flex; align-items: center; gap: 0; margin-left: 4px; flex-wrap: nowrap; }
+  .period-pill {
+    padding: 3px 8px; font-size: 11px; font-weight: 500; cursor: pointer;
+    border: none; background: none; color: var(--sl); border-radius: 4px; transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .period-pill:hover { background: var(--sl-bg); color: var(--ink); }
+  .period-pill.active { background: var(--blue); color: #fff; }
+  .period-divider { width: 1px; height: 14px; background: var(--sl-dim); margin: 0 3px; flex-shrink: 0; }
+  .chevron-toggle {
+    margin-left: auto; width: 22px; height: 22px; display: flex; align-items: center;
+    justify-content: center; border-radius: 4px; cursor: pointer; border: none;
+    background: none; color: var(--sl); font-size: 12px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .chevron-toggle:hover { background: var(--sl-bg); color: var(--ink); }
+  .chevron-toggle.collapsed { transform: rotate(180deg); }
+
+  /* ── Content ── */
+  .content { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
+
+  /* Context strip */
+  .ctx-strip {
+    background: var(--ink-md); color: #fff; border-radius: 8px; padding: 8px 16px;
+    font-size: 12.5px; font-weight: 400; margin-bottom: 12px; display: flex;
+    align-items: center; gap: 6px;
+  }
+  .ctx-strip .ctx-sep { color: var(--sl-lt); }
+
+  /* Legend */
+  .legend-bar {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px; padding: 0 2px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--sl); }
+  .legend-swatch { width: 18px; height: 3px; border-radius: 2px; }
+  .legend-swatch.bar { width: 14px; height: 10px; border-radius: 2px; }
+  .legend-swatch.goal { border-top: 2px dashed; background: none !important; }
+
+  /* Stat cards */
+  .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--wh); border-radius: 10px; padding: 14px 16px; border-left: 4px solid;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .stat-card.met { border-left-color: var(--green); }
+  .stat-card.not-met { border-left-color: var(--red); }
+  .stat-card-label { font-size: 11.5px; color: var(--sl); font-weight: 500; margin-bottom: 6px; }
+  .stat-card-value { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; color: var(--ink); }
+  .stat-card-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .stat-trend { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 2px; }
+  .stat-trend.up { color: var(--green); }
+  .stat-trend.down { color: var(--red); }
+  .stat-goal { font-size: 11px; color: var(--sl-lt); }
+  .stat-goal-badge {
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+  }
+  .stat-goal-badge.met { background: var(--green-bg); color: var(--green-dk); }
+  .stat-goal-badge.not-met { background: var(--red-bg); color: var(--red); }
+
+  /* Charts grid */
+  .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .chart-card {
+    background: var(--wh); border-radius: 10px; padding: 14px 16px 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .chart-title { font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .chart-wrap { width: 100%; }
+  .chart-wrap svg { width: 100%; height: auto; display: block; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .stat-cards { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Title Bar -->
+<div class="titlebar">
+  <div class="titlebar-left">
+    <div class="titlebar-icon">G</div>
+    <span class="titlebar-text">GS Extractor</span>
+  </div>
+  <div class="titlebar-controls">
+    <button class="titlebar-btn" title="Minimize">&#x2500;</button>
+    <button class="titlebar-btn" title="Maximize">&#x25A1;</button>
+    <button class="titlebar-btn close" title="Close">&#x2715;</button>
+  </div>
+</div>
+
+<!-- App Body -->
+<div class="app-body">
+
+  <!-- Sidebar Rail -->
+  <div class="sidebar">
+    <div class="sidebar-brand">G</div>
+    <div class="sidebar-nav">
+      <div class="sidebar-item" data-tip="Extractor">&#8593;</div>
+      <div class="sidebar-item active" data-tip="Analytics">&#x1F4CA;</div>
+      <div class="sidebar-item" data-tip="Points">&#x2B50;</div>
+      <div class="sidebar-item" data-tip="Compare">&#x21C4;</div>
+      <div class="sidebar-item" data-tip="Trifecta">&#x2726;</div>
+      <div class="sidebar-item" data-tip="Archive">&#x1F5C4;</div>
+    </div>
+    <div class="sidebar-bottom">141</div>
+  </div>
+
+  <!-- Main Column -->
+  <div class="main-col">
+
+    <!-- Ribbon -->
+    <div class="ribbon">
+      <!-- Row 1 -->
+      <div class="ribbon-row1">
+        <div class="ribbon-row1-left">
+          <span class="ribbon-page-title">Overview</span>
+          <span class="ribbon-sep">|</span>
+          <button class="ribbon-tab active" id="tabBar">Bar Chart</button>
+          <button class="ribbon-tab" id="tabLine">Line Chart</button>
+        </div>
+        <div class="ribbon-row1-right">
+          <div class="ribbon-toggle">
+            <button class="ribbon-toggle-btn active" id="btnMean">Mean</button>
+            <button class="ribbon-toggle-btn" id="btnMedian">Median</button>
+          </div>
+          <button class="ribbon-action" title="Save">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 14h10a1 1 0 001-1V5l-3-3H3a1 1 0 00-1 1v10a1 1 0 001 1z"/><path d="M5 14V9h6v5M5 2v3h4"/></svg>
+            Save
+          </button>
+          <button class="ribbon-action" title="Export">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2M8 2v8M5 5l3-3 3 3"/></svg>
+            Export
+          </button>
+        </div>
+      </div>
+      <!-- Row 2 -->
+      <div class="ribbon-row2-wrap" id="row2Wrap">
+        <div class="ribbon-row2">
+          <div class="period-nav">
+            <button class="period-arrow">&#x2039;</button>
+            <button class="period-arrow">&#x203A;</button>
+          </div>
+          <span class="period-date">Mar 1 &ndash; 14, 2026 (2w)</span>
+          <div class="period-pills">
+            <button class="period-pill">Rec.Upload</button>
+            <div class="period-divider"></div>
+            <button class="period-pill">3d</button>
+            <button class="period-pill">5d</button>
+            <div class="period-divider"></div>
+            <button class="period-pill">1w</button>
+            <button class="period-pill active">2w</button>
+            <button class="period-pill">4w</button>
+            <button class="period-pill">8w</button>
+            <button class="period-pill">12w</button>
+            <button class="period-pill">18w</button>
+            <button class="period-pill">26w</button>
+            <button class="period-pill">34w</button>
+            <button class="period-pill">48w</button>
+            <button class="period-pill">1yr</button>
+            <div class="period-divider"></div>
+            <button class="period-pill">Custom &#x2726;</button>
+          </div>
+          <button class="chevron-toggle" id="chevronToggle" title="Toggle period bar">&#x25B4;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content" id="contentArea">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const CHART_DATA = {
+  "period": {"label":"2 weeks","from":"March 1, 2026","to":"March 14, 2026","days":10,"records":148},
+  "summary": [
+    {"label":"Store Mean SP %","medianLabel":"Store Median SP %","value":"1.84%","medianValue":"1.81%","trend":"+0.12%","medianTrend":"+0.09%","trendDir":"up","goal":"1.80%","goalMet":true,"medianGoalMet":true},
+    {"label":"Store Mean Cust #","medianLabel":"Store Median Cust #","value":"42","medianValue":"41","trend":"+4","medianTrend":"+3","trendDir":"up","goal":"40","goalMet":true,"medianGoalMet":true},
+    {"label":"Store Mean SP $","medianLabel":"Store Median SP $","value":"$199","medianValue":"$194","trend":"+$14","medianTrend":"+$10","trendDir":"up","goal":"$250","goalMet":false,"medianGoalMet":false},
+    {"label":"Store Mean SP #","medianLabel":"Store Median SP #","value":"4.9","medianValue":"4.7","trend":"-0.2","medianTrend":"-0.3","trendDir":"down","goal":"6","goalMet":false,"medianGoalMet":false}
+  ],
+  "charts": {
+    "sp_pct":{"label":"SP %","values":[1.66,1.7,1.72,1.68,1.76,1.78,1.8,1.83,1.85,1.88],"yMin":1.4,"yMax":2.1,"goalVal":1.8,"meanVal":1.84,"medianVal":1.81,"yTicks":["2.10","1.95","1.80","1.65","1.50","1.40"]},
+    "cust":{"label":"Cust #","values":[35,37,39,36,40,39,42,43,45,47],"yMin":30,"yMax":50,"goalVal":40,"meanVal":42,"medianVal":41,"yTicks":["50","46","42","38","34","30"]},
+    "sp_d":{"label":"SP $","values":[165,170,178,168,182,185,192,200,208,215],"yMin":140,"yMax":260,"goalVal":250,"meanVal":199,"medianVal":194,"yTicks":["$260","$236","$212","$188","$164","$140"]},
+    "sp_n":{"label":"SP #","values":[4.3,4.5,4.7,4.4,4.8,4.9,5.0,5.2,5.4,5.5],"yMin":3,"yMax":7,"goalVal":6,"meanVal":4.9,"medianVal":4.7,"yTicks":["7","6.2","5.4","4.6","3.8","3"]}
+  }
+};
+
+let useMean = true;
+let chartMode = 'bar'; // 'bar' | 'line'
+const W = 460, H = 180, PAD = {t:10, r:16, b:24, l:44};
+const plotW = W - PAD.l - PAD.r;
+const plotH = H - PAD.t - PAD.b;
+
+function toY(v, yMin, yMax) {
+  return PAD.t + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+}
+
+function lineXPositions(n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push(PAD.l + (i / (n - 1)) * plotW);
+  return pts;
+}
+
+function polyPts(vals, yMin, yMax) {
+  const xs = lineXPositions(vals.length);
+  return vals.map((v, i) => `${xs[i]},${toY(v, yMin, yMax)}`).join(' ');
+}
+
+function fillPts(vals, yMin, yMax) {
+  const xs = lineXPositions(vals.length);
+  const base = toY(yMin, yMin, yMax);
+  let pts = `${xs[0]},${base} `;
+  pts += vals.map((v, i) => `${xs[i]},${toY(v, yMin, yMax)}`).join(' ');
+  pts += ` ${xs[xs.length-1]},${base}`;
+  return pts;
+}
+
+function barXCenters(n) {
+  const gap = plotW / n;
+  const centers = [];
+  for (let i = 0; i < n; i++) centers.push(PAD.l + gap * i + gap / 2);
+  return centers;
+}
+
+function buildYAxis(c) {
+  let svg = '';
+  const ticks = c.yTicks;
+  const n = ticks.length;
+  for (let i = 0; i < n; i++) {
+    const frac = i / (n - 1);
+    const y = PAD.t + frac * plotH;
+    svg += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}" stroke="#E2E8F0" stroke-width="1"/>`;
+    svg += `<text x="${PAD.l - 6}" y="${y + 3.5}" text-anchor="end" fill="#94A3B8" font-size="10" font-family="DM Mono, monospace">${ticks[i]}</text>`;
+  }
+  return svg;
+}
+
+function buildBarSVG(c) {
+  const vals = c.values;
+  const n = vals.length;
+  const centers = barXCenters(n);
+  const barW = Math.min(plotW / n * 0.55, 28);
+  const goalY = toY(c.goalVal, c.yMin, c.yMax);
+  const mv = useMean ? c.meanVal : c.medianVal;
+  const meanY = toY(mv, c.yMin, c.yMax);
+  const baseY = toY(c.yMin, c.yMin, c.yMax);
+
+  let bars = '';
+  vals.forEach((v, i) => {
+    const y = toY(v, c.yMin, c.yMax);
+    const h = baseY - y;
+    const color = v >= c.goalVal ? 'var(--blue)' : '#93C5FD';
+    bars += `<rect x="${centers[i] - barW/2}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${color}" opacity="0.85"/>`;
+  });
+
+  const goalLine = `<line x1="${PAD.l}" y1="${goalY}" x2="${W - PAD.r}" y2="${goalY}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  const meanLine = `<line x1="${PAD.l}" y1="${meanY}" x2="${W - PAD.r}" y2="${meanY}" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${buildYAxis(c)}${bars}${goalLine}${meanLine}</svg>`;
+}
+
+function buildLineSVG(c) {
+  const goalY = toY(c.goalVal, c.yMin, c.yMax);
+  const mv = useMean ? c.meanVal : c.medianVal;
+  const meanY = toY(mv, c.yMin, c.yMax);
+
+  const fill = `<polygon points="${fillPts(c.values, c.yMin, c.yMax)}" fill="var(--blue)" opacity="0.10"/>`;
+  const line = `<polyline points="${polyPts(c.values, c.yMin, c.yMax)}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  const xs = lineXPositions(c.values.length);
+  let dots = '';
+  c.values.forEach((v, i) => {
+    dots += `<circle cx="${xs[i]}" cy="${toY(v, c.yMin, c.yMax)}" r="3.5" fill="var(--blue)" stroke="#fff" stroke-width="1.5"/>`;
+  });
+
+  const goalLine = `<line x1="${PAD.l}" y1="${goalY}" x2="${W - PAD.r}" y2="${goalY}" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  const meanLine = `<line x1="${PAD.l}" y1="${meanY}" x2="${W - PAD.r}" y2="${meanY}" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3,3"/>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${buildYAxis(c)}${fill}${line}${dots}${goalLine}${meanLine}</svg>`;
+}
+
+function buildChart(key) {
+  const c = CHART_DATA.charts[key];
+  const svg = chartMode === 'bar' ? buildBarSVG(c) : buildLineSVG(c);
+  return `<div class="chart-card"><div class="chart-title">${c.label}</div><div class="chart-wrap">${svg}</div></div>`;
+}
+
+function buildCards() {
+  return CHART_DATA.summary.map(s => {
+    const label = useMean ? s.label : s.medianLabel;
+    const value = useMean ? s.value : s.medianValue;
+    const trend = useMean ? s.trend : s.medianTrend;
+    const met = useMean ? s.goalMet : s.medianGoalMet;
+    const arrow = s.trendDir === 'up' ? '&#9650;' : '&#9660;';
+    return `<div class="stat-card ${met ? 'met' : 'not-met'}">
+      <div class="stat-card-label">${label}</div>
+      <div class="stat-card-value">${value}</div>
+      <div class="stat-card-row">
+        <span class="stat-trend ${s.trendDir}">${arrow} ${trend}</span>
+        <span class="stat-goal">Goal: ${s.goal}</span>
+        <span class="stat-goal-badge ${met ? 'met' : 'not-met'}">${met ? '&#10003;' : '&#10007;'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildLegend() {
+  const mmLabel = useMean ? 'Mean' : 'Median';
+  const barOrLine = chartMode === 'bar'
+    ? `<span class="legend-swatch bar" style="background:var(--blue);opacity:0.85;"></span> Daily`
+    : `<span class="legend-swatch" style="background:var(--blue);"></span> Daily`;
+  return `<div class="legend-bar">
+    <div class="legend-item">${barOrLine}</div>
+    <div class="legend-item"><span class="legend-swatch goal" style="border-color:var(--gold);"></span> Goal</div>
+    <div class="legend-item"><span class="legend-swatch goal" style="border-color:var(--green);"></span> ${mmLabel}</div>
+  </div>`;
+}
+
+function buildCtx() {
+  const p = CHART_DATA.period;
+  return `<div class="ctx-strip">
+    <strong>${p.label}</strong> <span class="ctx-sep">&mdash;</span>
+    ${p.from} &ndash; ${p.to}
+    <span class="ctx-sep">&middot;</span> ${p.days} days
+    <span class="ctx-sep">&middot;</span> ${p.records} records
+  </div>`;
+}
+
+function render() {
+  const el = document.getElementById('contentArea');
+  el.innerHTML = buildCtx() + buildLegend()
+    + `<div class="stat-cards">${buildCards()}</div>`
+    + `<div class="charts-grid">${buildChart('sp_pct')}${buildChart('cust')}${buildChart('sp_d')}${buildChart('sp_n')}</div>`;
+}
+
+function setMM(mean) {
+  useMean = mean;
+  document.getElementById('btnMean').classList.toggle('active', mean);
+  document.getElementById('btnMedian').classList.toggle('active', !mean);
+  render();
+}
+
+// ── Event listeners ──
+document.getElementById('btnMean').addEventListener('click', () => setMM(true));
+document.getElementById('btnMedian').addEventListener('click', () => setMM(false));
+
+document.getElementById('tabBar').addEventListener('click', function() {
+  chartMode = 'bar';
+  this.classList.add('active');
+  document.getElementById('tabLine').classList.remove('active');
+  render();
+});
+document.getElementById('tabLine').addEventListener('click', function() {
+  chartMode = 'line';
+  this.classList.add('active');
+  document.getElementById('tabBar').classList.remove('active');
+  render();
+});
+
+document.getElementById('chevronToggle').addEventListener('click', function() {
+  const wrap = document.getElementById('row2Wrap');
+  wrap.classList.toggle('collapsed');
+  this.classList.toggle('collapsed');
+  this.innerHTML = wrap.classList.contains('collapsed') ? '&#x25BE;' : '&#x25B4;';
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>

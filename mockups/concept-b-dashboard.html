@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GS Reports — Clean Pro Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset ─────────────────────────────────────────────── */
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; }
+  body { font-family:'DM Sans',system-ui,sans-serif; background:#0B1220; color:#1E2D45; }
+
+  /* ── Design Tokens ─────────────────────────────────────── */
+  :root {
+    --ink:#0B1220; --ink-md:#1E2D45; --blue:#2563EB; --gold:#D97706; --red:#B91C1C;
+    --green:#059669; --green-bg:#D1FAE5; --green-dk:#065F34; --red-bg:#FEE2E2;
+    --sl:#64748B; --sl-lt:#94A3B8; --sl-dim:#CBD5E1; --sl-bg:#F1F5F9; --wh:#FFFFFF; --page:#E8EEF7;
+    --sidebar-w:200px; --subnav-w:156px; --titlebar-h:38px;
+  }
+
+  /* ── Combined Title Bar + Top Bar (38px) ───────────────── */
+  .titlebar {
+    height:var(--titlebar-h); background:var(--ink); display:flex; align-items:center;
+    padding:0 0 0 14px; user-select:none; -webkit-app-region:drag; position:relative; z-index:100;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .titlebar .app-brand { display:flex; align-items:center; gap:8px; margin-right:auto; }
+  .titlebar .app-icon {
+    width:20px; height:20px; border-radius:4px; background:linear-gradient(135deg,#3B82F6,#2563EB);
+    display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:700;
+  }
+  .titlebar .app-name { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:#fff; letter-spacing:.3px; }
+
+  .titlebar .center-controls { display:flex; align-items:center; gap:16px; }
+  .titlebar .page-title { font-size:12px; color:var(--sl-lt); font-weight:500; margin-right:8px; }
+  .titlebar .tab-group { display:flex; gap:2px; }
+  .titlebar .tab-btn {
+    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; padding:4px 10px;
+    border:none; border-radius:4px; cursor:pointer; -webkit-app-region:no-drag;
+    background:transparent; color:var(--sl-lt); transition:all .15s;
+  }
+  .titlebar .tab-btn:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .titlebar .tab-btn.active { background:rgba(37,99,235,.35); color:#93BBFF; }
+
+  .titlebar .period-pills { display:flex; gap:2px; margin-left:8px; }
+  .titlebar .period-pill {
+    font-family:'DM Sans',sans-serif; font-size:10px; font-weight:500; padding:3px 8px;
+    border:none; border-radius:3px; cursor:pointer; -webkit-app-region:no-drag;
+    background:transparent; color:var(--sl); transition:all .15s;
+  }
+  .titlebar .period-pill:hover { background:rgba(255,255,255,.06); color:var(--sl-lt); }
+  .titlebar .period-pill.active { background:rgba(255,255,255,.1); color:#fff; }
+
+  .titlebar .window-controls { display:flex; margin-left:16px; -webkit-app-region:no-drag; }
+  .titlebar .win-btn {
+    width:46px; height:var(--titlebar-h); display:flex; align-items:center; justify-content:center;
+    background:transparent; border:none; color:var(--sl-lt); font-size:13px; cursor:pointer;
+    transition:background .12s; font-family:'Segoe MDL2 Assets','DM Sans',sans-serif;
+  }
+  .titlebar .win-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .titlebar .win-btn.close:hover { background:#C42B1C; color:#fff; }
+
+  /* ── App Layout ────────────────────────────────────────── */
+  .app { display:flex; height:calc(100vh - var(--titlebar-h)); }
+
+  /* ── Sidebar (200px) ───────────────────────────────────── */
+  .sidebar {
+    width:var(--sidebar-w); min-width:var(--sidebar-w); background:var(--ink-md);
+    display:flex; flex-direction:column; overflow-y:auto;
+  }
+  .sidebar-brand {
+    display:flex; align-items:center; gap:10px; padding:16px 16px 14px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .sidebar-brand .brand-icon {
+    width:32px; height:32px; border-radius:6px; background:linear-gradient(135deg,#3B82F6,#2563EB);
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; font-weight:700;
+    flex-shrink:0;
+  }
+  .sidebar-brand .brand-text { line-height:1.25; }
+  .sidebar-brand .brand-name { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:#fff; }
+  .sidebar-brand .brand-sub { font-size:10px; color:var(--sl); font-weight:400; }
+
+  .sidebar-section { padding:14px 0 4px; }
+  .sidebar-section-title {
+    font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:1.2px;
+    color:var(--sl); padding:0 16px 6px; line-height:1;
+  }
+  .sidebar-nav { list-style:none; }
+  .sidebar-nav li a {
+    display:flex; align-items:center; gap:9px; padding:7px 16px; font-size:12px; font-weight:400;
+    color:var(--sl-lt); text-decoration:none; border-left:2.5px solid transparent;
+    transition:all .12s; cursor:pointer;
+  }
+  .sidebar-nav li a:hover { background:rgba(255,255,255,.04); color:#fff; }
+  .sidebar-nav li a.active {
+    border-left-color:#7BA2F8; background:rgba(37,99,235,.28); color:#fff; font-weight:500;
+  }
+  .sidebar-nav li a .nav-icon { width:16px; text-align:center; font-size:12px; flex-shrink:0; }
+
+  .sidebar-footer {
+    margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,.06);
+    font-size:10px; color:var(--sl); text-align:center;
+  }
+
+  /* ── Sub-navigation Panel (156px) ──────────────────────── */
+  .subnav {
+    width:var(--subnav-w); min-width:var(--subnav-w); background:var(--sl-bg);
+    border-right:1px solid var(--sl-dim); display:flex; flex-direction:column; overflow-y:auto;
+  }
+  .subnav-header {
+    padding:14px 14px 8px; font-size:9.5px; font-weight:600; text-transform:uppercase;
+    letter-spacing:1.2px; color:var(--sl);
+  }
+  .subnav-list { list-style:none; }
+  .subnav-list li a {
+    display:flex; align-items:center; gap:7px; padding:7px 14px; font-size:11.5px; font-weight:400;
+    color:var(--sl); text-decoration:none; border-left:2.5px solid transparent;
+    transition:all .12s; cursor:pointer; position:relative;
+  }
+  .subnav-list li a:hover { background:rgba(0,0,0,.04); color:var(--ink-md); }
+  .subnav-list li a.active { border-left-color:var(--blue); color:var(--blue); font-weight:600; background:rgba(37,99,235,.06); }
+  .subnav-list li a .sn-icon { width:14px; text-align:center; font-size:11px; flex-shrink:0; }
+  .subnav-list li a .badge {
+    margin-left:auto; font-size:9px; font-weight:600; padding:1px 5px; border-radius:3px;
+    background:var(--red-bg); color:var(--red); line-height:1.4;
+  }
+  .subnav-divider { height:1px; background:var(--sl-dim); margin:8px 14px; }
+  .subnav-section-title {
+    font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1.1px;
+    color:var(--sl-lt); padding:6px 14px 4px;
+  }
+
+  /* ── Content Area ──────────────────────────────────────── */
+  .content { flex:1; background:var(--page); overflow-y:auto; display:flex; flex-direction:column; }
+
+  /* content top bar */
+  .content-topbar {
+    display:flex; align-items:center; justify-content:space-between; padding:10px 20px 8px;
+    border-bottom:1px solid rgba(0,0,0,.06); background:rgba(255,255,255,.45);
+  }
+  .content-topbar .breadcrumb { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sl); }
+  .content-topbar .breadcrumb .sep { color:var(--sl-dim); }
+  .content-topbar .breadcrumb .current { color:var(--ink-md); font-weight:600; }
+  .content-topbar .mm-toggle { display:flex; align-items:center; gap:6px; }
+  .content-topbar .mm-toggle label {
+    font-size:10.5px; font-weight:500; color:var(--sl); cursor:pointer;
+  }
+  .content-topbar .mm-toggle input[type="checkbox"] { display:none; }
+  .content-topbar .mm-toggle .toggle-track {
+    width:32px; height:16px; border-radius:8px; background:var(--sl-dim); position:relative;
+    cursor:pointer; transition:background .2s; display:inline-block; vertical-align:middle;
+  }
+  .content-topbar .mm-toggle .toggle-track.on { background:var(--blue); }
+  .content-topbar .mm-toggle .toggle-track::after {
+    content:''; position:absolute; top:2px; left:2px; width:12px; height:12px;
+    border-radius:50%; background:#fff; transition:transform .2s; box-shadow:0 1px 2px rgba(0,0,0,.15);
+  }
+  .content-topbar .mm-toggle .toggle-track.on::after { transform:translateX(16px); }
+
+  /* content body */
+  .content-body { padding:14px 20px 20px; flex:1; }
+
+  /* Context Strip */
+  .ctx-strip {
+    background:var(--ink-md); color:#fff; border-radius:6px; padding:8px 16px;
+    display:flex; align-items:center; gap:20px; font-size:11px; margin-bottom:10px;
+  }
+  .ctx-strip .ctx-label { font-weight:600; }
+  .ctx-strip .ctx-detail { color:var(--sl-lt); }
+  .ctx-strip .ctx-detail b { color:#fff; font-weight:500; }
+
+  /* Legend Bar */
+  .legend-bar {
+    background:#fff; border:1px solid var(--sl-dim); border-radius:6px; padding:7px 14px;
+    display:flex; align-items:center; gap:16px; font-size:10.5px; color:var(--sl);
+    margin-bottom:12px; flex-wrap:wrap;
+  }
+  .legend-bar .leg-item { display:flex; align-items:center; gap:5px; }
+  .legend-bar .swatch { width:14px; height:10px; border-radius:2px; }
+  .legend-bar .swatch.bar { background:var(--blue); }
+  .legend-bar .swatch.line { background:var(--blue); height:2px; width:14px; }
+  .legend-bar .swatch.goal { width:14px; height:0; border-top:2px dashed var(--red); }
+  .legend-bar .swatch.mean { width:14px; height:0; border-top:2px solid var(--gold); }
+
+  /* Stat Cards Grid */
+  .stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+  .stat-card {
+    background:#fff; border-radius:6px; padding:10px 14px; border-left:3px solid var(--green);
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .stat-card.miss { border-left-color:var(--red); }
+  .stat-card .sc-label { font-size:10px; color:var(--sl); font-weight:500; margin-bottom:2px; }
+  .stat-card .sc-row { display:flex; align-items:baseline; gap:8px; }
+  .stat-card .sc-value { font-family:'DM Mono',monospace; font-size:20px; font-weight:500; color:var(--ink-md); }
+  .stat-card .sc-trend { font-family:'DM Mono',monospace; font-size:11px; font-weight:500; }
+  .stat-card .sc-trend.up { color:var(--green); }
+  .stat-card .sc-trend.down { color:var(--red); }
+  .stat-card .sc-goal { font-size:9.5px; color:var(--sl); margin-top:3px; }
+  .stat-card .sc-goal .goal-met { color:var(--green-dk); font-weight:600; }
+  .stat-card .sc-goal .goal-miss { color:var(--red); font-weight:600; }
+
+  /* Charts Grid */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .chart-panel {
+    background:#fff; border-radius:6px; padding:12px 14px 10px; box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .chart-panel .cp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .chart-panel .cp-title { font-size:12px; font-weight:600; color:var(--ink-md); }
+  .chart-panel .cp-value { font-family:'DM Mono',monospace; font-size:11px; color:var(--sl); }
+  .chart-panel svg { width:100%; display:block; }
+
+  /* ── Scrollbar styling ─────────────────────────────────── */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--sl-dim); border-radius:3px; }
+  .sidebar::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); }
+</style>
+</head>
+<body>
+
+<!-- ═══ Combined Title Bar + Top Bar ═══ -->
+<div class="titlebar">
+  <div class="app-brand">
+    <div class="app-icon">G</div>
+    <span class="app-name">GS Extractor</span>
+  </div>
+  <div class="center-controls">
+    <span class="page-title">Overview</span>
+    <div class="tab-group">
+      <button class="tab-btn active" id="tabBar" onclick="switchChart('bar')">Bar Chart</button>
+      <button class="tab-btn" id="tabLine" onclick="switchChart('line')">Line Chart</button>
+    </div>
+    <div class="period-pills">
+      <button class="period-pill">1W</button>
+      <button class="period-pill active">2W</button>
+      <button class="period-pill">1M</button>
+      <button class="period-pill">3M</button>
+      <button class="period-pill">YTD</button>
+    </div>
+  </div>
+  <div class="window-controls">
+    <button class="win-btn" title="Minimize">&#x2500;</button>
+    <button class="win-btn" title="Maximize">&#x25A1;</button>
+    <button class="win-btn close" title="Close">&#x2715;</button>
+  </div>
+</div>
+
+<!-- ═══ App Body ═══ -->
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">G</div>
+      <div class="brand-text">
+        <div class="brand-name">GS Extractor</div>
+        <div class="brand-sub">Store 141</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Reports</div>
+      <ul class="sidebar-nav">
+        <li><a href="#"><span class="nav-icon">&#8593;</span> Extractor</a></li>
+        <li><a href="#" class="active"><span class="nav-icon">&#128202;</span> Analytics</a></li>
+        <li><a href="#"><span class="nav-icon">&#11088;</span> Points</a></li>
+        <li><a href="#"><span class="nav-icon">&#8644;</span> Compare</a></li>
+        <li><a href="#"><span class="nav-icon">&#10022;</span> Trifecta</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Data</div>
+      <ul class="sidebar-nav">
+        <li><a href="#"><span class="nav-icon">&#128452;</span> Archive</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-footer">Store 141 &middot; GS Dept</div>
+  </nav>
+
+  <!-- ── Sub-navigation Panel ── -->
+  <nav class="subnav">
+    <div class="subnav-header">Analytics</div>
+    <ul class="subnav-list">
+      <li><a href="#" class="active"><span class="sn-icon">&#128200;</span> Overview</a></li>
+      <li><a href="#"><span class="sn-icon">&#128100;</span> By employee</a></li>
+      <li><a href="#"><span class="sn-icon">&#9638;</span> Compare all</a></li>
+      <li><a href="#"><span class="sn-icon">&#127919;</span> Goals <span class="badge">3&#8595;</span></a></li>
+    </ul>
+    <div class="subnav-divider"></div>
+    <div class="subnav-section-title">Chart type</div>
+    <ul class="subnav-list">
+      <li><a href="#" class="active" id="snBar" onclick="switchChart('bar');return false"><span class="sn-icon">&#9641;</span> Bar chart</a></li>
+      <li><a href="#" id="snLine" onclick="switchChart('line');return false"><span class="sn-icon">&#12316;</span> Line chart</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Content ── -->
+  <main class="content">
+    <div class="content-topbar">
+      <div class="breadcrumb">
+        <span>Analytics</span><span class="sep">/</span><span class="current">Overview</span>
+      </div>
+      <div class="mm-toggle">
+        <label>Mean</label>
+        <span class="toggle-track" id="mmToggle" onclick="toggleMM()"></span>
+        <label>Median</label>
+      </div>
+    </div>
+    <div class="content-body" id="contentBody">
+      <!-- JS-rendered -->
+    </div>
+  </main>
+</div>
+
+<script>
+// ── Chart Data ──────────────────────────────────────────────
+const CHART_DATA = {
+  "period": {"label":"2 weeks","from":"March 1, 2026","to":"March 14, 2026","days":10,"records":148},
+  "summary": [
+    {"label":"Store Mean SP %","medianLabel":"Store Median SP %","value":"1.84%","medianValue":"1.81%","trend":"+0.12%","medianTrend":"+0.09%","trendDir":"up","goal":"1.80%","goalMet":true,"medianGoalMet":true},
+    {"label":"Store Mean Cust #","medianLabel":"Store Median Cust #","value":"42","medianValue":"41","trend":"+4","medianTrend":"+3","trendDir":"up","goal":"40","goalMet":true,"medianGoalMet":true},
+    {"label":"Store Mean SP $","medianLabel":"Store Median SP $","value":"$199","medianValue":"$194","trend":"+$14","medianTrend":"+$10","trendDir":"up","goal":"$250","goalMet":false,"medianGoalMet":false},
+    {"label":"Store Mean SP #","medianLabel":"Store Median SP #","value":"4.9","medianValue":"4.7","trend":"-0.2","medianTrend":"-0.3","trendDir":"down","goal":"6","goalMet":false,"medianGoalMet":false}
+  ],
+  "charts": {
+    "sp_pct":{"label":"SP %","values":[1.66,1.7,1.72,1.68,1.76,1.78,1.8,1.83,1.85,1.88],"yMin":1.4,"yMax":2.1,"goalVal":1.8,"meanVal":1.84,"medianVal":1.81,"yTicks":["2.10","1.95","1.80","1.65","1.50","1.40"]},
+    "cust":{"label":"Cust #","values":[35,37,39,36,40,39,42,43,45,47],"yMin":30,"yMax":50,"goalVal":40,"meanVal":42,"medianVal":41,"yTicks":["50","46","42","38","34","30"]},
+    "sp_d":{"label":"SP $","values":[165,170,178,168,182,185,192,200,208,215],"yMin":140,"yMax":260,"goalVal":250,"meanVal":199,"medianVal":194,"yTicks":["$260","$236","$212","$188","$164","$140"]},
+    "sp_n":{"label":"SP #","values":[4.3,4.5,4.7,4.4,4.8,4.9,5.0,5.2,5.4,5.5],"yMin":3,"yMax":7,"goalVal":6,"meanVal":4.9,"medianVal":4.7,"yTicks":["7","6.2","5.4","4.6","3.8","3"]}
+  }
+};
+
+// ── State ───────────────────────────────────────────────────
+let useMedian = false;
+let chartMode = 'bar'; // 'bar' | 'line'
+
+// ── Chart Geometry ──────────────────────────────────────────
+const CW = 380, CH = 160, PAD_L = 42, PAD_R = 12, PAD_T = 8, PAD_B = 22;
+const PLOT_W = CW - PAD_L - PAD_R;
+const PLOT_H = CH - PAD_T - PAD_B;
+
+function toY(val, yMin, yMax) {
+  return PAD_T + PLOT_H - ((val - yMin) / (yMax - yMin)) * PLOT_H;
+}
+
+function lineXPositions(n) {
+  const positions = [];
+  for (let i = 0; i < n; i++) {
+    positions.push(PAD_L + (i / (n - 1)) * PLOT_W);
+  }
+  return positions;
+}
+
+function barXCenters(n) {
+  const gap = PLOT_W / n;
+  const centers = [];
+  for (let i = 0; i < n; i++) {
+    centers.push(PAD_L + gap * i + gap / 2);
+  }
+  return centers;
+}
+
+function polyPts(values, yMin, yMax) {
+  const xs = lineXPositions(values.length);
+  return values.map((v, i) => `${xs[i].toFixed(1)},${toY(v, yMin, yMax).toFixed(1)}`).join(' ');
+}
+
+function fillPts(values, yMin, yMax) {
+  const xs = lineXPositions(values.length);
+  const base = toY(yMin, yMin, yMax);
+  let pts = `${xs[0].toFixed(1)},${base}`;
+  values.forEach((v, i) => { pts += ` ${xs[i].toFixed(1)},${toY(v, yMin, yMax).toFixed(1)}`; });
+  pts += ` ${xs[xs.length - 1].toFixed(1)},${base}`;
+  return pts;
+}
+
+function buildYAxis(yTicks, yMin, yMax) {
+  let svg = '';
+  const tickVals = yTicks.map(t => parseFloat(t.replace('$', '')));
+  tickVals.forEach((tv, i) => {
+    const y = toY(tv, yMin, yMax);
+    svg += `<line x1="${PAD_L}" y1="${y}" x2="${CW - PAD_R}" y2="${y}" stroke="#E2E8F0" stroke-width="0.7"/>`;
+    svg += `<text x="${PAD_L - 5}" y="${y + 3}" text-anchor="end" font-size="9" fill="#94A3B8" font-family="DM Mono,monospace">${yTicks[i]}</text>`;
+  });
+  return svg;
+}
+
+function buildBarSVG(d) {
+  const { values, yMin, yMax, goalVal, meanVal, medianVal, yTicks } = d;
+  const n = values.length;
+  const xs = barXCenters(n);
+  const barW = (PLOT_W / n) * 0.55;
+  const base = toY(yMin, yMin, yMax);
+  const refVal = useMedian ? medianVal : meanVal;
+
+  let svg = buildYAxis(yTicks, yMin, yMax);
+
+  // bars
+  values.forEach((v, i) => {
+    const y = toY(v, yMin, yMax);
+    const h = base - y;
+    const aboveGoal = v >= goalVal;
+    const fill = aboveGoal ? '#2563EB' : '#93BBFF';
+    svg += `<rect x="${(xs[i] - barW / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${fill}" opacity="0.85"/>`;
+  });
+
+  // goal line
+  const gy = toY(goalVal, yMin, yMax);
+  svg += `<line x1="${PAD_L}" y1="${gy}" x2="${CW - PAD_R}" y2="${gy}" stroke="#B91C1C" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+
+  // mean/median line
+  const my = toY(refVal, yMin, yMax);
+  svg += `<line x1="${PAD_L}" y1="${my}" x2="${CW - PAD_R}" y2="${my}" stroke="#D97706" stroke-width="1.2"/>`;
+
+  // x labels
+  const days = ['M3/1','T3/2','W3/3','T3/4','F3/5','M3/8','T3/9','W3/10','T3/11','F3/12'];
+  values.forEach((_, i) => {
+    svg += `<text x="${xs[i]}" y="${CH - 4}" text-anchor="middle" font-size="8" fill="#94A3B8" font-family="DM Mono,monospace">${days[i] || ''}</text>`;
+  });
+
+  return svg;
+}
+
+function buildLineSVG(d) {
+  const { values, yMin, yMax, goalVal, meanVal, medianVal, yTicks } = d;
+  const refVal = useMedian ? medianVal : meanVal;
+
+  let svg = buildYAxis(yTicks, yMin, yMax);
+
+  // fill
+  svg += `<polygon points="${fillPts(values, yMin, yMax)}" fill="url(#blueGrad)" opacity="0.18"/>`;
+
+  // line
+  svg += `<polyline points="${polyPts(values, yMin, yMax)}" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  // dots
+  const xs = lineXPositions(values.length);
+  values.forEach((v, i) => {
+    const y = toY(v, yMin, yMax);
+    svg += `<circle cx="${xs[i].toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#2563EB" stroke="#fff" stroke-width="1.5"/>`;
+  });
+
+  // goal line
+  const gy = toY(goalVal, yMin, yMax);
+  svg += `<line x1="${PAD_L}" y1="${gy}" x2="${CW - PAD_R}" y2="${gy}" stroke="#B91C1C" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+
+  // mean/median line
+  const my = toY(refVal, yMin, yMax);
+  svg += `<line x1="${PAD_L}" y1="${my}" x2="${CW - PAD_R}" y2="${my}" stroke="#D97706" stroke-width="1.2"/>`;
+
+  // x labels
+  const days = ['M3/1','T3/2','W3/3','T3/4','F3/5','M3/8','T3/9','W3/10','T3/11','F3/12'];
+  values.forEach((_, i) => {
+    svg += `<text x="${xs[i]}" y="${CH - 4}" text-anchor="middle" font-size="8" fill="#94A3B8" font-family="DM Mono,monospace">${days[i] || ''}</text>`;
+  });
+
+  return svg;
+}
+
+function buildChart(key) {
+  const d = CHART_DATA.charts[key];
+  const refVal = useMedian ? d.medianVal : d.meanVal;
+  const refLabel = useMedian ? 'Mdn' : 'Mean';
+  const inner = chartMode === 'bar' ? buildBarSVG(d) : buildLineSVG(d);
+
+  return `<div class="chart-panel">
+    <div class="cp-header">
+      <span class="cp-title">${d.label}</span>
+      <span class="cp-value">${refLabel}: ${typeof refVal === 'number' && key === 'sp_d' ? '$' : ''}${refVal}${key === 'sp_pct' ? '%' : ''} &nbsp; Goal: ${key === 'sp_d' ? '$' : ''}${d.goalVal}${key === 'sp_pct' ? '%' : ''}</span>
+    </div>
+    <svg viewBox="0 0 ${CW} ${CH}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2563EB" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${inner}
+    </svg>
+  </div>`;
+}
+
+function buildCards() {
+  return CHART_DATA.summary.map(s => {
+    const lbl = useMedian ? s.medianLabel : s.label;
+    const val = useMedian ? s.medianValue : s.value;
+    const trend = useMedian ? s.medianTrend : s.trend;
+    const met = useMedian ? s.medianGoalMet : s.goalMet;
+    const arrow = s.trendDir === 'up' ? '&#9650;' : '&#9660;';
+    return `<div class="stat-card${met ? '' : ' miss'}">
+      <div class="sc-label">${lbl}</div>
+      <div class="sc-row">
+        <span class="sc-value">${val}</span>
+        <span class="sc-trend ${s.trendDir}">${arrow} ${trend}</span>
+      </div>
+      <div class="sc-goal">Goal: ${s.goal} ${met ? '<span class="goal-met">&#10003; Met</span>' : '<span class="goal-miss">&#10007; Miss</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildLegend() {
+  const typeLabel = chartMode === 'bar' ? 'Bar' : 'Line';
+  const swatch = chartMode === 'bar' ? '<span class="swatch bar"></span>' : '<span class="swatch line"></span>';
+  const refLabel = useMedian ? 'Median' : 'Mean';
+  return `<div class="legend-bar">
+    <span class="leg-item">${swatch} ${typeLabel} — daily value</span>
+    <span class="leg-item"><span class="swatch goal"></span> Goal target</span>
+    <span class="leg-item"><span class="swatch mean"></span> Period ${refLabel}</span>
+  </div>`;
+}
+
+function buildCtx() {
+  const p = CHART_DATA.period;
+  return `<div class="ctx-strip">
+    <span class="ctx-label">Period</span>
+    <span class="ctx-detail"><b>${p.label}</b> &nbsp; ${p.from} &ndash; ${p.to}</span>
+    <span class="ctx-detail"><b>${p.days}</b> working days &nbsp;&middot;&nbsp; <b>${p.records}</b> records</span>
+  </div>`;
+}
+
+// ── Render ──────────────────────────────────────────────────
+function render() {
+  const body = document.getElementById('contentBody');
+  body.innerHTML =
+    buildCtx() +
+    buildLegend() +
+    `<div class="stat-cards">${buildCards()}</div>` +
+    `<div class="charts-grid">
+      ${buildChart('sp_pct')}
+      ${buildChart('cust')}
+      ${buildChart('sp_d')}
+      ${buildChart('sp_n')}
+    </div>`;
+}
+
+// ── Interactions ────────────────────────────────────────────
+function toggleMM() {
+  useMedian = !useMedian;
+  document.getElementById('mmToggle').classList.toggle('on', useMedian);
+  render();
+}
+
+function switchChart(mode) {
+  chartMode = mode;
+  document.getElementById('tabBar').classList.toggle('active', mode === 'bar');
+  document.getElementById('tabLine').classList.toggle('active', mode === 'line');
+  document.getElementById('snBar').classList.toggle('active', mode === 'bar');
+  document.getElementById('snLine').classList.toggle('active', mode === 'line');
+  render();
+}
+
+// period pill clicks
+document.querySelectorAll('.period-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.period-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+// initial render
+render();
+</script>
+</body>
+</html>
