@@ -1,0 +1,16 @@
+{
+  "name": "gs-report-analytics",
+  "version": "1.0.0",
+  "description": "GS Report Analytics Dashboard - Employee Performance Tracking",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

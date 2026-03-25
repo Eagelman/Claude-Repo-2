@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<title>GS Report Analytics</title>
+</head>
+<body>
+<div class="screen">
+  <div class="slbl" id="page-label">GS Report Analytics &middot; Store 141</div>
+  <div class="app" id="app-root">
+    <div class="app-header">
+      <div class="app-header-title">GS Report Analytics &mdash; Store 141</div>
+    </div>
+    <div class="shell">
+      <!-- Global Sidebar -->
+      <div class="gsb">
+        <div class="gsb-brand">
+          <div class="gsb-icon"><svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="7" height="9" rx="1" fill="rgba(255,255,255,.7)"/><rect x="5" y="4" width="7" height="8" rx="1" fill="#fff"/></svg></div>
+          <div><div class="gsb-name">GS Extractor</div><div class="gsb-sub">Store 141</div></div>
+        </div>
+        <div class="gsb-nav">
+          <div class="gsb-sec">Reports</div>
+          <a href="#/extractor" class="gsb-item" data-route="extractor"><span class="gsb-ico">&#8593;</span>Extractor</a>
+          <a href="#/overview" class="gsb-item" data-route="overview"><span class="gsb-ico">&#128202;</span>Analytics</a>
+          <a href="#/points" class="gsb-item" data-route="points"><span class="gsb-ico">&#11088;</span>Points</a>
+          <a href="#/compare" class="gsb-item" data-route="compare"><span class="gsb-ico">&#8644;</span>Compare</a>
+          <a href="#/trifecta" class="gsb-item" data-route="trifecta"><span class="gsb-ico">&#10022;</span>Trifecta</a>
+          <div class="gsb-sec">Data</div>
+          <a href="#/archive" class="gsb-item" data-route="archive"><span class="gsb-ico">&#128452;</span>Archive</a>
+        </div>
+        <div class="gsb-foot">Store 141 &middot; GS Dept</div>
+      </div>
+      <!-- Analytics Sub-nav + Main Content -->
+      <div class="an-shell">
+        <div class="sn" id="sub-nav">
+          <div class="sn-hdr">Analytics</div>
+          <div class="sn-body">
+            <div class="sn-grp">Views</div>
+            <a href="#/overview" class="sn-item" data-route="overview"><span class="sn-ico">&#128200;</span>Overview</a>
+            <a href="#/employee/bar" class="sn-item" data-route="employee"><span class="sn-ico">&#128100;</span>By employee</a>
+            <a href="#/compare" class="sn-item" data-route="compare"><span class="sn-ico">&#9638;</span>Compare all</a>
+            <a href="#/goals" class="sn-item" data-route="goals"><span class="sn-ico">&#127919;</span>Goals</a>
+          </div>
+        </div>
+        <div class="main">
+          <div id="page-content">
+            <!-- Page content rendered here by router -->
+            <div class="topbar">
+              <div class="tb-title">Loading...</div>
+            </div>
+            <div class="content" style="align-items:center;justify-content:center;">
+              <p style="color:var(--sl);font-size:14px;">Loading application...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vendor libraries -->
+<script src="vendor/xlsx.full.min.js"></script>
+
+<!-- Application -->
+<script src="js/lib/format.js"></script>
+<script src="js/lib/charts.js"></script>
+<script src="js/lib/tauri-bridge.js"></script>
+<script src="js/pages/overview.js"></script>
+<script src="js/pages/compare.js"></script>
+<script src="js/pages/employee-bar.js"></script>
+<script src="js/pages/employee-line.js"></script>
+<script src="js/pages/employee-radar.js"></script>
+<script src="js/pages/goals.js"></script>
+<script src="js/pages/points.js"></script>
+<script src="js/pages/trifecta.js"></script>
+<script src="js/pages/extractor.js"></script>
+<script src="js/pages/archive.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
