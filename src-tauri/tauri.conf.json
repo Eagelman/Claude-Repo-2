@@ -1,19 +1,20 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicedouble/tauri-schema/main/tauri.conf.schema.json",
-  "productName": "GS Report Analytics",
-  "version": "1.0.0",
-  "identifier": "com.gs-analytics.app",
+  "$schema": "https://raw.githubusercontent.com/nicbou/tauri/refs/heads/main/crates/tauri-utils/schema.json",
+  "productName": "GS Extractor",
+  "version": "0.1.0",
+  "identifier": "com.gs-extractor.app",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../frontend"
   },
   "app": {
     "windows": [
       {
-        "title": "GS Report Analytics",
-        "width": 1400,
+        "title": "GS Extractor",
+        "width": 1440,
         "height": 900,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": true
       }
     ],
     "security": {

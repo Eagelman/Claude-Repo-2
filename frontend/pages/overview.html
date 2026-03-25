@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="../js/bridge.js"></script>
+
+<!-- ============================================================
+     DATA CONTRACT
+     Replace CHART_DATA below with your DB query output.
+     The rendering functions read ONLY from this object —
+     no other part of the file needs to change when data updates.
+     ============================================================ -->
+<script>
+const CHART_DATA = {
+  "period": {
+    "label": "2 weeks",
+    "from": "March 1, 2026",
+    "to": "March 14, 2026",
+    "days": 10,
+    "records": 148
+  },
+  "summary": [
+    {
+      "label": "Store Mean SP %",   "medianLabel": "Store Median SP %",
+      "value": "1.84%",             "medianValue": "1.81%",
+      "trend": "+0.12%",            "medianTrend": "+0.09%",
+      "trendDir": "up",
+      "goal": "1.80%",
+      "goalMet": true,              "medianGoalMet": true
+    },
+    {
+      "label": "Store Mean Cust #", "medianLabel": "Store Median Cust #",
+      "value": "42",                "medianValue": "41",
+      "trend": "+4",               "medianTrend": "+3",
+      "trendDir": "up",
+      "goal": "40",
+      "goalMet": true,             "medianGoalMet": true
+    },
+    {
+      "label": "Store Mean SP $",   "medianLabel": "Store Median SP $",
+      "value": "$199",              "medianValue": "$194",
+      "trend": "+$14",             "medianTrend": "+$10",
+      "trendDir": "up",
+      "goal": "$250",
+      "goalMet": false,            "medianGoalMet": false
+    },
+    {
+      "label": "Store Mean SP #",   "medianLabel": "Store Median SP #",
+      "value": "4.9",              "medianValue": "4.7",
+      "trend": "-0.2",             "medianTrend": "-0.3",
+      "trendDir": "down",
+      "goal": "6",
+      "goalMet": false,            "medianGoalMet": false
+    }
+  ],
+  "charts": {
+    "sp_pct": {
+      "label": "SP %",
+      "values": [
+        1.66,
+        1.7,
+        1.72,
+        1.68,
+        1.76,
+        1.78,
+        1.8,
+        1.83,
+        1.85,
+        1.88
+      ],
+      "yMin": 1.4,
+      "yMax": 2.1,
+      "goalVal": 1.8,
+      "meanVal": 1.84,
+      "medianVal": 1.81,
+      "yFmt": "decimal2",
+      "yTicks": [
+        "2.10",
+        "1.95",
+        "1.80",
+        "1.65",
+        "1.50",
+        "1.40"
+      ]
+    },
+    "cust": {
+      "label": "Cust #",
+      "values": [
+        35,
+        37,
+        39,
+        36,
+        40,
+        39,
+        42,
+        43,
+        45,
+        47
+      ],
+      "yMin": 30,
+      "yMax": 50,
+      "goalVal": 40,
+      "meanVal": 42,
+      "medianVal": 41,
+      "yFmt": "int",
+      "yTicks": [
+        "50",
+        "46",
+        "42",
+        "38",
+        "34",
+        "30"
+      ]
+    },
+    "sp_d": {
+      "label": "SP $",
+      "values": [
+        165,
+        170,
+        178,
+        168,
+        182,
+        185,
+        192,
+        200,
+        208,
+        215
+      ],
+      "yMin": 140,
+      "yMax": 260,
+      "goalVal": 250,
+      "meanVal": 199,
+      "medianVal": 194,
+      "yFmt": "dollar",
+      "yTicks": [
+        "$260",
+        "$236",
+        "$212",
+        "$188",
+        "$164",
+        "$140"
+      ]
+    },
+    "sp_n": {
+      "label": "SP #",
+      "values": [
+        4.3,
+        4.5,
+        4.7,
+        4.4,
+        4.8,
+        4.9,
+        5.0,
+        5.2,
+        5.4,
+        5.5
+      ],
+      "yMin": 3,
+      "yMax": 7,
+      "goalVal": 6,
+      "meanVal": 4.9,
+      "medianVal": 4.7,
+      "yFmt": "decimal1",
+      "yTicks": [
+        "7",
+        "6.2",
+        "5.4",
+        "4.6",
+        "3.8",
+        "3"
+      ]
+    }
+  }
+};
+</script>
+
+<style>
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  --ink:     #0B1220;
+  --ink-md:  #1E2D45;
+  --blue:    #2563EB;   /* bars + lines            */
+  --gold:    #D97706;   /* period mean line        */
+  --red:     #B91C1C;   /* goal target line        */
+  --green:   #059669;
+  --green-bg:#D1FAE5;
+  --green-dk:#065F34;
+  --red-bg:  #FEE2E2;
+  --sl:      #64748B;
+  --sl-lt:   #94A3B8;
+  --sl-dim:  #CBD5E1;
+  --sl-bg:   #F1F5F9;
+  --wh:      #FFFFFF;
+  --page:    #E8EEF7;
+  --sbw: 210px;
+  --snw: 156px;
+  --tbh: 50px;
+  --r4:4px; --r8:8px; --r10:10px; --r14:14px;
+  --s1: 0 1px 3px rgba(11,18,32,.09);
+  --s3: 0 8px 28px rgba(11,18,32,.13), 0 2px 6px rgba(11,18,32,.07);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+body { font-family:'DM Sans',sans-serif; font-size:13px; background:var(--page); color:var(--ink); }
+
+/* ── Page layout ───────────────────────────────────────────── */
+.screens { display:flex; flex-direction:column; gap:52px; padding:32px; }
+.slbl { font-family:'DM Mono',monospace; font-size:10px; font-weight:500; color:var(--blue);
+         letter-spacing:.10em; text-transform:uppercase; background:var(--sl-bg);
+         border:1px solid var(--sl-dim); display:inline-block; padding:3px 10px;
+         border-radius:20px; margin-bottom:10px; }
+
+/* ── App chrome ────────────────────────────────────────────── */
+.app { width:100%; border-radius:var(--r14); overflow:hidden;
+       box-shadow:var(--s3), 0 0 0 1px rgba(11,18,32,.10);
+       display:flex; flex-direction:column; height:840px; background:var(--wh); }
+.chrome { height:38px; background:var(--ink); display:flex; align-items:center;
+           padding:0 14px; flex-shrink:0; }
+.cdots { display:flex; gap:7px; }
+.cdot  { width:12px; height:12px; border-radius:50%; }
+.cdr { background:#FF5F57; } .cdy { background:#FEBC2E; } .cdg { background:#28C840; }
+.ctitle { flex:1; text-align:center; font-family:'DM Mono',monospace; font-size:10px;
+           color:rgba(255,255,255,.28); letter-spacing:.06em; }
+.cspace { width:72px; }
+.shell { flex:1; display:flex; overflow:hidden; }
+
+/* ── Global sidebar ────────────────────────────────────────── */
+.gsb { width:var(--sbw); background:var(--ink-md); display:flex; flex-direction:column; flex-shrink:0; }
+.gsb-brand { height:var(--tbh); padding:0 15px; display:flex; align-items:center;
+              gap:9px; border-bottom:1px solid rgba(255,255,255,.07); }
+.gsb-icon  { width:28px; height:28px; border-radius:var(--r8); background:var(--blue);
+              display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gsb-name  { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:#fff;
+              white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gsb-sub   { font-size:10px; color:rgba(255,255,255,.38); }
+.gsb-nav   { flex:1; padding:7px 0; }
+.gsb-sec   { font-size:9px; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+              color:rgba(255,255,255,.25); padding:11px 15px 3px; }
+.gsb-item  { display:flex; align-items:center; gap:8px; padding:7px 15px; font-size:12px;
+              font-weight:500; color:rgba(255,255,255,.42); cursor:pointer; white-space:nowrap; }
+.gsb-item:hover { background:rgba(255,255,255,.06); color:rgba(255,255,255,.72); }
+.gsb-item.on { background:rgba(37,99,235,.28); color:#fff; border-right:2.5px solid #7BA2F8; }
+.gsb-foot  { padding:9px 15px; border-top:1px solid rgba(255,255,255,.07);
+              font-size:10px; color:rgba(255,255,255,.25); }
+
+/* ── Analytics shell + sub-nav ─────────────────────────────── */
+.an-shell { flex:1; display:flex; overflow:hidden; min-width:0; }
+.sn { width:var(--snw); background:var(--sl-bg); border-right:1px solid var(--sl-dim);
+       flex-shrink:0; display:flex; flex-direction:column; overflow:hidden; }
+.sn-hdr  { height:var(--tbh); padding:0 13px; display:flex; align-items:center;
+            border-bottom:1px solid var(--sl-dim); font-family:'Syne',sans-serif;
+            font-size:10px; font-weight:700; color:var(--sl); letter-spacing:.09em;
+            text-transform:uppercase; }
+.sn-body { flex:1; padding:6px 0; overflow-y:auto; }
+.sn-grp  { font-size:9px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+            color:var(--sl-lt); padding:9px 12px 3px; }
+.sn-item { display:flex; align-items:center; gap:7px; padding:6px 12px; font-size:11px;
+            font-weight:500; color:var(--sl); cursor:pointer; border-left:2px solid transparent;
+            white-space:nowrap; }
+.sn-item.on       { background:var(--sl-bg); color:var(--blue); border-left-color:var(--blue); font-weight:600; }
+.sn-item.goal-on  { background:var(--red-bg); color:var(--red); border-left-color:var(--red); font-weight:600; }
+.sn-badge-re { margin-left:auto; font-size:9px; font-weight:700; background:var(--red);
+                color:#fff; border-radius:8px; padding:1px 5px; flex-shrink:0; }
+
+/* ── Main panel ─────────────────────────────────────────────── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+.topbar { height:var(--tbh); background:var(--wh); border-bottom:1px solid var(--sl-dim);
+           display:flex; align-items:center; gap:10px; padding:0 18px;
+           flex-shrink:0; overflow:hidden; }
+.tb-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700;
+             color:var(--ink); white-space:nowrap; }
+.tb-sep   { width:1px; height:18px; background:var(--sl-dim); flex-shrink:0; }
+.tb-r     { margin-left:auto; display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.btn-b    { background:var(--blue); border:1px solid #1d4ed8; border-radius:var(--r4);
+             padding:4px 11px; font-size:11px; color:#fff; cursor:pointer;
+             font-weight:500; white-space:nowrap; }
+.togs { display:flex; border:1px solid var(--sl-dim); border-radius:var(--r4); overflow:hidden; }
+.tog  { padding:4px 8px; font-size:11px; background:var(--wh); border:none;
+         border-right:1px solid var(--sl-dim); cursor:pointer; color:var(--sl);
+         font-weight:500; white-space:nowrap; }
+.tog:last-child { border-right:none; }
+.tog.on { background:var(--blue); color:#fff; font-weight:600; }
+
+/* ── Period selector ────────────────────────────────────────── */
+.pbar  { display:flex; align-items:center; gap:3px; background:var(--sl-bg);
+          border:1px solid var(--sl-dim); border-radius:22px; padding:3px; }
+.pnav  { width:22px; height:22px; border-radius:50%; background:var(--wh);
+          border:1px solid var(--sl-dim); display:flex; align-items:center;
+          justify-content:center; cursor:pointer; font-size:11px; color:var(--sl); flex-shrink:0; }
+.pdate { font-family:'DM Mono',monospace; font-size:10px; color:var(--blue);
+          background:var(--sl-bg); border:1px solid var(--sl-dim); border-radius:var(--r4);
+          padding:2px 8px; flex-shrink:0; white-space:nowrap; }
+.ppills { display:flex; gap:0; }
+.pp    { padding:3px 8px; font-size:10px; font-weight:500; border-radius:13px;
+          cursor:pointer; color:var(--sl); background:transparent; border:none; white-space:nowrap; }
+.pp:hover { background:var(--wh); }
+.pp.on  { background:var(--blue); color:#fff; font-weight:600; }
+.pp.cp  { color:var(--blue); border:1px dashed #93c5fd; border-radius:13px; margin:0 2px; }
+.pp.rec { color:var(--green-dk); border:1px solid #6EE7B7; border-radius:13px;
+           background:rgba(5,150,105,.08); font-weight:600; }
+.pdiv  { width:1px; height:13px; background:var(--sl-dim); margin:0 2px; align-self:center; }
+
+/* ── Content area ───────────────────────────────────────────── */
+.content { flex:1; overflow-y:auto; padding:14px 18px; display:flex;
+            flex-direction:column; gap:10px; min-width:0; }
+.content::-webkit-scrollbar { width:4px; }
+.content::-webkit-scrollbar-thumb { background:var(--sl-dim); border-radius:2px; }
+
+/* ── Context strip ──────────────────────────────────────────── */
+.ctx { display:flex; align-items:center; gap:8px; background:var(--ink-md);
+        border-radius:var(--r8); padding:9px 15px; flex-wrap:wrap; flex-shrink:0; }
+.ctx-period { font-size:9px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+               color:rgba(255,255,255,.4); flex-shrink:0; }
+.ctx-range  { font-family:'DM Mono',monospace; font-size:12px; color:#fff;
+               font-weight:600; white-space:nowrap; }
+.ctx-dot    { color:rgba(255,255,255,.2); }
+.ctx-detail { font-size:11px; color:rgba(255,255,255,.55); white-space:nowrap; }
+
+/* ── Legend bar ─────────────────────────────────────────────── */
+.legend-bar { display:flex; align-items:center; background:var(--sl-bg);
+               border:1px solid var(--sl-dim); border-radius:var(--r8);
+               padding:10px 15px; flex-wrap:nowrap; overflow:hidden; }
+.leg-section-lbl { font-size:9px; font-weight:700; letter-spacing:.11em;
+                    text-transform:uppercase; color:var(--sl); white-space:nowrap;
+                    flex-shrink:0; margin-right:10px; }
+.leg-item { display:flex; align-items:center; gap:6px; margin-right:16px;
+             white-space:nowrap; flex-shrink:0; }
+.leg-label { font-size:11px; font-weight:600; }
+.leg-label.blue { color:var(--blue); }
+.leg-label.gold { color:var(--gold); }
+.leg-label.red  { color:var(--red);  }
+.leg-sep  { width:1px; height:16px; background:var(--sl-dim); margin:0 14px; flex-shrink:0; }
+.leg-note { font-size:10px; color:var(--sl-lt); font-style:italic; flex:1;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mm-toggle { display:flex; background:var(--wh); border:1px solid var(--sl-dim);
+              border-radius:3px; overflow:hidden; flex-shrink:0; margin-left:auto; }
+.mm-btn { padding:3px 10px; font-size:9px; font-weight:700; border:none;
+           background:transparent; cursor:pointer; color:var(--sl);
+           white-space:nowrap; letter-spacing:.04em; }
+.mm-btn:not(:last-child) { border-right:1px solid var(--sl-dim); }
+.mm-btn.on { background:var(--blue); color:#fff; }
+
+/* ── Summary stat cards ─────────────────────────────────────── */
+.sc-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.sc { background:var(--wh); border:1px solid var(--sl-dim); border-radius:var(--r10);
+       padding:11px 13px; box-shadow:var(--s1); overflow:hidden; min-width:0;
+       display:flex; flex-direction:column; gap:4px; }
+.sc.above { border-left:3px solid var(--green); }
+.sc.below { border-left:3px solid var(--red); }
+.sc-lbl  { font-size:10px; font-weight:600; color:var(--sl); text-transform:uppercase;
+            letter-spacing:.08em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sc-vrow { display:flex; align-items:baseline; gap:6px; min-width:0; }
+.sc-val  { font-family:'Syne',sans-serif; font-size:21px; font-weight:700; color:var(--ink);
+            letter-spacing:-.02em; line-height:1; white-space:nowrap;
+            overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.sc-ind  { display:inline-flex; align-items:center; gap:2px; font-size:10px; font-weight:700;
+            border-radius:var(--r4); padding:2px 5px; flex-shrink:0; white-space:nowrap; }
+.si-up { background:var(--green-bg); color:var(--green-dk); }
+.si-dn { background:var(--red-bg);   color:var(--red); }
+.sc-note { font-size:10px; color:var(--sl); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sc-goal { font-size:10px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sc-goal.hit  { color:var(--green-dk); }
+.sc-goal.miss { color:var(--red); }
+
+/* ── Chart grid + panels ────────────────────────────────────── */
+.chart-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cp { background:var(--wh); border:1px solid var(--sl-dim); border-radius:var(--r10);
+       padding:14px 16px; box-shadow:var(--s1); overflow:hidden; min-width:0; }
+.cp-title { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; color:var(--ink);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:2px; }
+.cp-sub   { font-size:10px; color:var(--sl); overflow:hidden; text-overflow:ellipsis;
+             white-space:nowrap; margin-bottom:10px; }
+
+/* ── Y-axis label column ────────────────────────────────────── */
+/* Sits to the left of each SVG. Labels are absolutely positioned
+   inside a relative container that matches the SVG height (160px). */
+.y-col { position:relative; width:38px; flex-shrink:0; height:160px; }
+.y-col span {
+  position:absolute; right:4px; transform:translateY(-50%);
+  font-size:9px; color:var(--sl-lt); font-family:'DM Mono',monospace;
+  white-space:nowrap; line-height:1;
+}
+
+/* ── Chart date label ───────────────────────────────────────── */
+.chart-date {
+  text-align:center; padding-top:5px; font-size:9px;
+  color:var(--sl-lt); font-family:'DM Mono',monospace; white-space:nowrap;
+}
+</style>
+</head>
+<body>
+
+<div class="screens">
+
+  <!-- ── BAR CHART STATE ─────────────────────────────────────── -->
+  <div>
+    <div class="slbl">Overview &middot; Bar chart &middot; reference lines render above bars</div>
+    <div class="app" id="app-bar"><!-- rendered by JS --></div>
+  </div>
+
+  <!-- ── LINE CHART STATE ────────────────────────────────────── -->
+  <div>
+    <div class="slbl">Overview &middot; Line chart &middot; reference lines render above fill + line</div>
+    <div class="app" id="app-line"><!-- rendered by JS --></div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     RENDERING ENGINE
+     Pure functions. No DOM state. Reads only from CHART_DATA.
+     To update the display: update CHART_DATA, call renderAll().
+     ============================================================ -->
+<script>
+// ── Geometry helpers ─────────────────────────────────────────
+// Convert a data value to a 0-100 SVG y-coordinate (top = 0).
+function toY(val, yMin, yMax) {
+  return (1 - (val - yMin) / (yMax - yMin)) * 100;
+}
+
+// Build an SVG <polyline> points string from parallel arrays.
+// xArr: x positions (0-100), yArr: y positions (0-100)
+function polyPts(xArr, yArr) {
+  return xArr.map((x, i) => `${x.toFixed(2)},${yArr[i].toFixed(2)}`).join(' ');
+}
+
+// Build a closed polygon string for the area fill under a line.
+// Closes back along y=100 (bottom of chart).
+function fillPts(xArr, yArr) {
+  return polyPts(xArr, yArr) +
+    ` ${xArr[xArr.length-1].toFixed(2)},100 ${xArr[0].toFixed(2)},100`;
+}
+
+// ── X-position calculators ───────────────────────────────────
+// LINE chart: first point at x=0, last at x=100 (touches both axis edges)
+function lineXPositions(n) {
+  return Array.from({length: n}, (_, i) => (n === 1) ? 50 : (i / (n - 1)) * 100);
+}
+
+// BAR chart: bars centered in equal columns, each column = 100/n units wide
+function barXCenters(n) {
+  return Array.from({length: n}, (_, i) => (i + 0.5) / n * 100);
+}
+
+// ── SVG builders ─────────────────────────────────────────────
+// Both builders follow the same z-order:
+//   gridlines → axis rules → week separator → data (bars/fill/line) →
+//   x-axis rule → REFERENCE LINES (on top) → tick marks
+// Reference lines are last so they always pop above the data.
+
+function buildBarSVG(chartKey, uid) {
+  const c = CHART_DATA.charts[chartKey];
+  const n = c.values.length;
+  const xs = barXCenters(n);
+  const bw = (100 / n) * 0.85; // bar width = 85% of column width
+
+  // Compute SVG y-positions
+  const goalY = toY(c.goalVal, c.yMin, c.yMax).toFixed(2);
+  const refVal = currentMode === 'median' ? c.medianVal : c.meanVal;
+  const meanY = toY(refVal, c.yMin, c.yMax).toFixed(2);
+
+  // Grid lines at 0%, 20%, 40%, 60%, 80%, 100% of chart height
+  const grids = [0,20,40,60,80,100].map(v =>
+    `<line x1="0" y1="${v}" x2="100" y2="${v}" stroke="#CBD5E1" stroke-width="0.4" opacity="0.4"/>`
+  ).join('');
+
+  // Axis rules
+  const yrule = `<line x1="0" y1="0" x2="0" y2="100" stroke="#CBD5E1" stroke-width="0.5"/>`;
+  const xrule = `<line x1="0" y1="100" x2="100" y2="100" stroke="#CBD5E1" stroke-width="0.5"/>`;
+
+  // Clip so bars/lines never bleed outside chart area
+  const clip = `<clipPath id="c${uid}"><rect x="0" y="0" width="100" height="100"/></clipPath>`;
+
+  // Bars (clipped)
+  const bars = c.values.map((val, i) => {
+    const by = toY(val, c.yMin, c.yMax).toFixed(2);
+    const bh = (100 - parseFloat(by)).toFixed(2);
+    const bx = (xs[i] - bw/2).toFixed(2);
+    return `<rect x="${bx}" y="${by}" width="${bw.toFixed(2)}" height="${bh}" fill="#2563EB" opacity="0.85" clip-path="url(#c${uid})"/>`;
+  }).join('');
+
+  // Reference lines — drawn AFTER bars so they appear on top
+  const goalLine = `<line x1="0" y1="${goalY}" x2="100" y2="${goalY}" stroke="#B91C1C" stroke-width="1.2" stroke-dasharray="2.5,1.5" clip-path="url(#c${uid})"/>`;
+  const meanLine = `<line x1="0" y1="${meanY}" x2="100" y2="${meanY}" stroke="#D97706" stroke-width="1.4" opacity="0.95" clip-path="url(#c${uid})"/>`;
+
+  // Tick marks at each bar center, below x-axis
+  const ticks = xs.map(x =>
+    `<line x1="${x.toFixed(2)}" y1="100" x2="${x.toFixed(2)}" y2="104" stroke="#94A3B8" stroke-width="0.5"/>`
+  ).join('');
+
+  // viewBox height 106 = 100 chart + 6 tick overhang
+  return `<svg width="100%" height="160" viewBox="0 0 100 106" preserveAspectRatio="none" style="display:block;">
+    <defs>${clip}</defs>
+    ${grids}${yrule}${bars}${xrule}${goalLine}${meanLine}${ticks}
+  </svg>`;
+}
+
+function buildLineSVG(chartKey, uid) {
+  const c = CHART_DATA.charts[chartKey];
+  const n = c.values.length;
+  const xs = lineXPositions(n);          // 0 … 100, touches both edges
+  const ys = c.values.map(v => toY(v, c.yMin, c.yMax));
+
+  const goalY = toY(c.goalVal, c.yMin, c.yMax).toFixed(2);
+  const refVal = currentMode === 'median' ? c.medianVal : c.meanVal;
+  const meanY = toY(refVal, c.yMin, c.yMax).toFixed(2);
+
+  const grids = [0,20,40,60,80,100].map(v =>
+    `<line x1="0" y1="${v}" x2="100" y2="${v}" stroke="#CBD5E1" stroke-width="0.4" opacity="0.45"/>`
+  ).join('');
+
+  const yrule = `<line x1="0" y1="0" x2="0" y2="100" stroke="#CBD5E1" stroke-width="0.5"/>`;
+  const xrule = `<line x1="0" y1="100" x2="100" y2="100" stroke="#CBD5E1" stroke-width="0.5"/>`;
+
+  // Subtle week-boundary separator at x=50 (midpoint between day 5 and day 6)
+  const wkSep = `<line x1="50" y1="0" x2="50" y2="100" stroke="#CBD5E1" stroke-width="0.3" stroke-dasharray="1.5,1" opacity="0.5"/>`;
+
+  const clip = `<clipPath id="c${uid}"><rect x="0" y="0" width="100" height="100"/></clipPath>`;
+  const grad = `<linearGradient id="g${uid}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#2563EB" stop-opacity="0.20"/>
+    <stop offset="80%"  stop-color="#2563EB" stop-opacity="0.03"/>
+    <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+  </linearGradient>`;
+
+  // Blue fill polygon (gradient) then blue line — both clipped
+  const fill = `<polygon points="${fillPts(xs, ys)}" fill="url(#g${uid})" clip-path="url(#c${uid})"/>`;
+  const line = `<polyline points="${polyPts(xs, ys)}" fill="none" stroke="#2563EB" stroke-width="1.0" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#c${uid})"/>`;
+
+  // Reference lines — drawn AFTER fill+line so they appear on top
+  const goalLine = `<line x1="0" y1="${goalY}" x2="100" y2="${goalY}" stroke="#B91C1C" stroke-width="1.2" stroke-dasharray="2.5,1.5" clip-path="url(#c${uid})"/>`;
+  const meanLine = `<line x1="0" y1="${meanY}" x2="100" y2="${meanY}" stroke="#D97706" stroke-width="1.4" opacity="0.95" clip-path="url(#c${uid})"/>`;
+
+  // Tick marks at exact data-point x-positions (same xs array as data)
+  const ticks = xs.map(x =>
+    `<line x1="${x.toFixed(2)}" y1="100" x2="${x.toFixed(2)}" y2="104" stroke="#94A3B8" stroke-width="0.5"/>`
+  ).join('');
+
+  return `<svg width="100%" height="160" viewBox="0 0 100 106" preserveAspectRatio="none" style="display:block;">
+    <defs>${grad}${clip}</defs>
+    ${grids}${yrule}${wkSep}${fill}${line}${xrule}${goalLine}${meanLine}${ticks}
+  </svg>`;
+}
+
+// ── Y-axis label column ──────────────────────────────────────
+// Labels are HTML spans (not SVG text) so they never stretch
+// with preserveAspectRatio="none".
+// yTicks array: top label first (highest value → y=0%).
+function buildYAxis(chartKey) {
+  const ticks = CHART_DATA.charts[chartKey].yTicks;
+  const n = ticks.length;
+  const spans = ticks.map((label, i) => {
+    const topPct = (i / (n - 1)) * 100;
+    return `<span style="top:${topPct.toFixed(1)}%">${label}</span>`;
+  }).join('');
+  return `<div class="y-col">${spans}</div>`;
+}
+
+// ── Chart panel ──────────────────────────────────────────────
+function buildChart(chartKey, uid, chartType) {
+  const c = CHART_DATA.charts[chartKey];
+  const svg = chartType === 'bar' ? buildBarSVG(chartKey, uid) : buildLineSVG(chartKey, uid);
+  const goalLabel = chartType === 'bar'
+    ? `${c.goalVal} (dotted red)`
+    : `${c.goalVal} (red dotted)`;
+  return `
+    <div class="cp">
+      <div class="cp-title">${c.label} &middot; Daily mean &middot; 2 weeks</div>
+      <div class="cp-sub">March 1&ndash;14 &middot; Goal: ${goalLabel} &middot; Mean: ${c.meanVal} (gold)</div>
+      <div style="display:flex;align-items:flex-start;gap:0;">
+        ${buildYAxis(chartKey)}
+        <div style="flex:1;min-width:0;">
+          ${svg}
+          <div class="chart-date">
+            ${CHART_DATA.period.from.replace(', 2026','')}&nbsp;&ndash;&nbsp;${CHART_DATA.period.to}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Legend ───────────────────────────────────────────────────
+function buildLegend(chartType) {
+  const chartSwatch = chartType === 'bar'
+    ? `<div style="width:14px;height:13px;background:#2563EB;border-radius:0;flex-shrink:0;opacity:0.85;"></div>`
+    : `<svg width="28" height="13" viewBox="0 0 28 13" style="flex-shrink:0;">
+         <defs>
+           <linearGradient id="leg-grad" x1="0" y1="0" x2="0" y2="1">
+             <stop offset="0%"   stop-color="#2563EB" stop-opacity=".28"/>
+             <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+           </linearGradient>
+         </defs>
+         <polygon points="0,7 28,7 28,13 0,13" fill="url(#leg-grad)"/>
+         <line x1="0" y1="7" x2="28" y2="7" stroke="#2563EB" stroke-width="2.5"/>
+       </svg>`;
+  return `
+    <div class="legend-bar">
+      <span class="leg-section-lbl">Chart</span>
+      <div class="leg-item">
+        ${chartSwatch}
+        <span class="leg-label blue">Daily mean</span>
+      </div>
+      <div class="leg-sep"></div>
+      <span class="leg-section-lbl">References</span>
+      <div class="leg-item">
+        <div style="width:20px;border-top:2.5px dotted #B91C1C;flex-shrink:0;"></div>
+        <span class="leg-label red">Goal target</span>
+      </div>
+      <div class="leg-item">
+        <div style="width:20px;height:2.5px;background:linear-gradient(90deg,#F59E0B,#D97706,#F59E0B);flex-shrink:0;border-radius:1px;"></div>
+        <span class="leg-label gold">Period mean</span>
+      </div>
+      <span class="leg-note">Goal only in legend &mdash; not labeled on chart</span>
+      <div class="mm-toggle">
+        <button class="mm-btn on" data-mode="mean" onclick="setMM('mean')">Mean</button>
+        <button class="mm-btn" data-mode="median" onclick="setMM('median')">Median</button>
+      </div>
+    </div>`;
+}
+
+// ── Mean / Median toggle ─────────────────────────────────────
+// Called by mm-btn onclick. Updates currentMode state and
+// re-renders all charts by calling renderApp on each container.
+function setMM(mode) {
+  if (currentMode === mode) return;
+  currentMode = mode;
+  // Re-render both chart panels (bar + line)
+  renderApp('app-bar',  'bar');
+  renderApp('app-line', 'line');
+  // Update toggle button active state
+  document.querySelectorAll('.mm-btn').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.mode === mode);
+  });
+  // Refresh stat cards
+  const cardMount = document.querySelector('.sc-row');
+  if (cardMount) cardMount.outerHTML = buildCards();
+
+  // Update legend label
+  document.querySelectorAll('.leg-label.gold').forEach(el => {
+    el.textContent = mode === 'mean' ? 'Period mean' : 'Period median';
+  });
+}
+
+// ── Summary stat cards ───────────────────────────────────────
+function buildCards() {
+  return `<div class="sc-row">${
+    CHART_DATA.summary.map(s => {
+      // Switch all card values based on currentMode
+      const isMedian  = currentMode === 'median';
+      const label     = isMedian ? s.medianLabel : s.label;
+      const value     = isMedian ? s.medianValue : s.value;
+      const trend     = isMedian ? s.medianTrend : s.trend;
+      const goalMet   = isMedian ? s.medianGoalMet : s.goalMet;
+      const goalClass = goalMet ? 'hit' : 'miss';
+      const goalIcon  = goalMet ? '&#10003;' : '&#10007;';
+      const indClass  = s.trendDir === 'up' ? 'si-up' : 'si-dn';
+      const indIcon   = s.trendDir === 'up' ? '&#8593;' : '&#8595;';
+      const cardClass = goalMet ? 'above' : 'below';
+      return `
+        <div class="sc ${cardClass}">
+          <div class="sc-lbl">${label}</div>
+          <div class="sc-vrow">
+            <div class="sc-val">${value}</div>
+            <span class="sc-ind ${indClass}">${indIcon} ${trend}</span>
+          </div>
+          <div class="sc-note">vs prior 2w: ${s.prior || '&mdash;'}</div>
+          <div class="sc-goal ${goalClass}">${goalIcon} ${goalMet ? 'Above' : 'Below'} goal (${s.goal})</div>
+        </div>`;
+    }).join('')
+  }</div>`;
+}
+
+// ── Context strip ────────────────────────────────────────────
+function buildCtx() {
+  const p = CHART_DATA.period;
+  return `
+    <div class="ctx">
+      <span class="ctx-period">${p.label}</span>
+      <span class="ctx-range">${p.from} &ndash; ${p.to} (Mon&ndash;Fri)</span>
+      <span class="ctx-dot">&middot;</span>
+      <span class="ctx-detail">${p.days} days &middot; ${p.records} records &middot; all employees</span>
+    </div>`;
+}
+
+// ── Topbar ───────────────────────────────────────────────────
+function buildTopbar(activeChart) {
+  const p = CHART_DATA.period;
+  const bOn = activeChart === 'bar'  ? ' on' : '';
+  const lOn = activeChart === 'line' ? ' on' : '';
+  return `
+    <div class="topbar">
+      <div class="tb-title">Overview</div>
+      <div class="tb-sep"></div>
+      <div class="pbar">
+        <div class="pnav">&#8249;</div>
+        <div class="pnav">&#8250;</div>
+        <span class="pdate">Mar 1&ndash;14, 2026 (2w)</span>
+        <div class="ppills">
+          <button class="pp rec">Rec.Upload</button>
+          <div class="pdiv"></div>
+          <button class="pp">3d</button><button class="pp">5d</button>
+          <div class="pdiv"></div>
+          <button class="pp">1w</button><button class="pp on">2w</button>
+          <button class="pp">4w</button><button class="pp">8w</button>
+          <button class="pp">12w</button><button class="pp">18w</button>
+          <button class="pp">26w</button><button class="pp">34w</button>
+          <button class="pp">48w</button><button class="pp">1yr</button>
+          <div class="pdiv"></div>
+          <button class="pp cp">Custom &#10022;</button>
+        </div>
+      </div>
+
+    </div>`;
+}
+
+// ── App shell ────────────────────────────────────────────────
+const SIDEBAR = `
+  <div class="gsb">
+    <div class="gsb-brand">
+      <div class="gsb-icon">
+        <svg width="14" height="14" viewBox="0 0 14 14">
+          <rect x="1" y="1" width="7" height="9" rx="1" fill="rgba(255,255,255,.7)"/>
+          <rect x="5" y="4" width="7" height="8" rx="1" fill="#fff"/>
+        </svg>
+      </div>
+      <div>
+        <div class="gsb-name">GS Extractor</div>
+        <div class="gsb-sub">Store 141</div>
+      </div>
+    </div>
+    <div class="gsb-nav">
+      <div class="gsb-sec">Reports</div>
+      <div class="gsb-item">&#8593; Extractor</div>
+      <div class="gsb-item on">&#128202; Analytics</div>
+      <div class="gsb-item">&#11088; Points</div>
+      <div class="gsb-item">&#8644; Compare</div>
+      <div class="gsb-item">&#10022; Trifecta</div>
+      <div class="gsb-sec">Data</div>
+      <div class="gsb-item">&#128452; Archive</div>
+    </div>
+    <div class="gsb-foot">Store 141 &middot; GS Dept</div>
+  </div>`;
+
+function buildSubnav(activeChart) {
+  const bOn = activeChart === 'bar'  ? ' on' : '';
+  const lOn = activeChart === 'line' ? ' on' : '';
+  return `
+    <div class="sn">
+      <div class="sn-hdr">Analytics</div>
+      <div class="sn-body">
+        <div class="sn-grp">Views</div>
+        <div class="sn-item on">&#128200; Overview</div>
+        <div class="sn-item">&#128100; By employee</div>
+        <div class="sn-item">&#9638; Compare all</div>
+        <div class="sn-item goal-on">&#127919; Goals<span class="sn-badge-re">3&#8595;</span></div>
+        <div class="sn-grp">Chart type</div>
+        <div class="sn-item${bOn}">&#9641; Bar chart</div>
+        <div class="sn-item${lOn}">&#12316; Line chart</div>
+      </div>
+    </div>`;
+}
+
+// ── Main render function ─────────────────────────────────────
+// Called once on load. Call again after updating CHART_DATA
+// (e.g. after a fetch() returns new period data from the DB).
+// ── State ────────────────────────────────────────────────────
+let currentMode = 'mean'; // 'mean' | 'median'
+
+function renderApp(containerId, chartType) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const charts = Object.keys(CHART_DATA.charts);   // ['sp_pct','cust','sp_d','sp_n']
+  const [k0, k1, k2, k3] = charts;
+
+  el.innerHTML = `
+    <div class="shell">
+      ${SIDEBAR}
+      <div class="an-shell">
+        ${buildSubnav(chartType)}
+        <div class="main">
+          ${buildTopbar(chartType)}
+          <div class="content">
+            ${buildCtx()}
+            ${buildLegend(chartType)}
+            ${buildCards()}
+            <div class="chart-grid-2">
+              ${buildChart(k0, chartType + k0, chartType)}
+              ${buildChart(k1, chartType + k1, chartType)}
+            </div>
+            <div class="chart-grid-2">
+              ${buildChart(k2, chartType + k2, chartType)}
+              ${buildChart(k3, chartType + k3, chartType)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Boot ─────────────────────────────────────────────────────
+function renderAll() {
+  renderApp('app-bar',  'bar');
+  renderApp('app-line', 'line');
+}
+
+renderAll();
+
+// ── Period change handler (called by page-wiring.js) ─────────
+// Fetches data from DB for the selected period, builds CHART_DATA, re-renders.
+window.setPeriod = async function(periodCode, anchorDate) {
+  if (!window.GS_BRIDGE || !window.GS_BRIDGE.isTauri) return;
+
+  const data = await window.GS_BRIDGE.loadRecordsForPeriod(periodCode, anchorDate);
+  if (data.isEmpty) return; // Keep showing hardcoded data if no DB records
+
+  const B = window.GS_BRIDGE;
+  const goals = await B.invoke('get_goals', { store: B.STORE });
+  const goalMap = {};
+  if (goals) goals.forEach(g => { goalMap[g.metricKey] = g.value; });
+
+  // Build CHART_DATA from raw records
+  const dm = data.dailyMeans;
+  const allSpPct = dm.map(d => d.meanSpPct);
+  const allCust  = dm.map(d => d.meanCust);
+  const allSpD   = dm.map(d => d.meanSpSales);
+  const allSpN   = dm.map(d => d.meanSpQty);
+
+  function buildChartObj(key, label, values, fmt) {
+    const goalVal = goalMap[key] || 0;
+    const mn = B.mean(values);
+    const md = B.median(values);
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const margin = (maxV - minV) * 0.15 || 0.5;
+    const yMin = Math.floor((minV - margin) * 10) / 10;
+    const yMax = Math.ceil((maxV + margin) * 10) / 10;
+    const ticks = [];
+    const step = (yMax - yMin) / 5;
+    for (let i = 0; i <= 5; i++) {
+      ticks.push((yMin + step * i).toFixed(fmt === 'pct' ? 2 : fmt === 'int' ? 0 : 1));
+    }
+    return {
+      label, values, yMin, yMax, goalVal, meanVal: mn, medianVal: md,
+      yFmt: fmt, yTicks: ticks.reverse(),
+    };
+  }
+
+  CHART_DATA.period = {
+    label: data.period.label,
+    from: B.fmtDate(data.period.from),
+    to: B.fmtDate(data.period.to),
+    days: dm.length,
+    records: data.records.length,
+  };
+
+  CHART_DATA.charts = {
+    sp_pct: buildChartObj('sp_pct', 'SP %', allSpPct, 'pct'),
+    cust:   buildChartObj('cust', 'Cust #', allCust, 'int'),
+    sp_d:   buildChartObj('sp_d', 'SP $', allSpD, 'dollar'),
+    sp_n:   buildChartObj('sp_n', 'SP #', allSpN, 'dec1'),
+  };
+
+  // Build summary cards from the data
+  // (simplified — uses mean values and goal comparisons)
+  const metrics = [
+    { key: 'sp_pct', label: 'Store Mean SP %', medianLabel: 'Store Median SP %', values: allSpPct, fmt: v => v.toFixed(2) + '%' },
+    { key: 'cust',   label: 'Store Mean Cust #', medianLabel: 'Store Median Cust #', values: allCust, fmt: v => Math.round(v).toString() },
+    { key: 'sp_d',   label: 'Store Mean SP $', medianLabel: 'Store Median SP $', values: allSpD, fmt: v => '$' + Math.round(v) },
+    { key: 'sp_n',   label: 'Store Mean SP #', medianLabel: 'Store Median SP #', values: allSpN, fmt: v => v.toFixed(1) },
+  ];
+
+  CHART_DATA.summary = metrics.map(m => {
+    const mn = B.mean(m.values);
+    const md = B.median(m.values);
+    const goal = goalMap[m.key] || 0;
+    return {
+      label: m.label, medianLabel: m.medianLabel,
+      value: m.fmt(mn), medianValue: m.fmt(md),
+      trend: '+0.00', medianTrend: '+0.00', trendDir: 'up',
+      goal: m.fmt(goal),
+      goalMet: mn >= goal, medianGoalMet: md >= goal,
+    };
+  });
+
+  renderAll();
+};
+</script>
+<script src="../js/page-wiring.js"></script>
+</body>
+</html>

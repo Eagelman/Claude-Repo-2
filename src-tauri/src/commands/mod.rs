@@ -1,10 +1,3 @@
-pub mod store;
-pub mod employees;
-pub mod metrics;
-pub mod goals;
-pub mod notes;
-pub mod points;
-pub mod trifecta;
-pub mod import;
 pub mod archive;
-pub mod files;
+pub mod config;
+pub mod records;

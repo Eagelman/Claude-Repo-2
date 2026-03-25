@@ -1,83 +1,128 @@
-//! GS Report Analytics - Tauri Application Library
-//!
-//! This is a retail store employee performance analytics dashboard backed by SQLite.
-//! The database lives in the archive directory and supports indefinite historical data
-//! with efficient temporal indexing (day/month/year).
+mod commands;
+mod db;
 
-pub mod commands;
-pub mod db;
-pub mod models;
+use db::Database;
+use std::path::PathBuf;
+use tauri::Manager;
 
-use db::DbState;
-use std::sync::Mutex;
-
-/// Build and configure the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize the database
-    let conn = db::init_db();
-    let db_state = DbState {
-        conn: Mutex::new(conn),
-    };
-
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_dialog::init())
-        .manage(db_state)
+        .setup(|app| {
+            // Use app data dir for the database
+            let app_dir = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| PathBuf::from("."));
+
+            let database = Database::new(app_dir).expect("Failed to initialize database");
+
+            // Seed default config if not present
+            seed_defaults(&database);
+
+            app.manage(database);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
-            // Store
-            commands::store::get_store,
-            commands::store::update_store,
-            // Employees
-            commands::employees::get_employees,
-            commands::employees::upsert_employee,
-            commands::employees::update_employee_status,
-            // Metrics
-            commands::metrics::get_daily_metrics,
-            commands::metrics::get_employee_metrics,
-            commands::metrics::upsert_daily_metric,
-            commands::metrics::get_store_summary,
-            commands::metrics::get_compare_data,
-            commands::metrics::get_overview_data,
-            commands::metrics::get_heatmap,
-            // Goals
-            commands::goals::get_goals,
-            commands::goals::save_goals,
-            commands::goals::toggle_goal_lock,
-            commands::goals::get_goals_data,
-            // Notes
-            commands::notes::get_notes,
-            commands::notes::add_note,
-            commands::notes::update_note,
-            commands::notes::delete_note,
-            commands::notes::toggle_note_lock,
-            // Points
-            commands::points::get_points_data,
-            commands::points::get_point_system,
-            commands::points::save_point_system,
-            commands::points::get_point_exceptions,
-            commands::points::save_point_exceptions,
-            // Trifecta
-            commands::trifecta::get_trifecta_data,
-            commands::trifecta::add_trifecta,
-            commands::trifecta::archive_trifectas,
-            commands::trifecta::get_trifecta_formula,
-            commands::trifecta::save_trifecta_formula,
-            commands::trifecta::add_gift_card,
-            commands::trifecta::get_gift_cards,
-            commands::trifecta::add_audit,
-            // Import
-            commands::import::import_metrics,
-            commands::import::get_import_history,
+            // Records (core data)
+            commands::records::save_records,
+            commands::records::get_records,
+            commands::records::get_available_dates,
+            commands::records::get_last_upload_date,
+            // Config
+            commands::config::get_goals,
+            commands::config::save_goals,
+            commands::config::get_point_system,
+            commands::config::save_point_system,
+            commands::config::get_notes,
+            commands::config::save_note,
+            commands::config::delete_note,
+            commands::config::get_gift_cards,
+            commands::config::save_gift_card,
+            commands::config::delete_gift_card,
+            commands::config::get_trifecta_config,
+            commands::config::save_trifecta_config,
+            commands::config::get_employee_exceptions,
+            commands::config::save_employee_exceptions,
+            commands::config::get_personal_goals,
+            commands::config::save_personal_goals,
+            commands::config::get_pts_exceptions,
+            commands::config::save_pts_exceptions,
+            commands::config::get_roster,
+            commands::config::save_roster,
             // Archive
-            commands::archive::query_archive,
-            commands::archive::get_available_periods,
-            commands::archive::export_archive,
-            commands::archive::get_db_path,
-            // Files
-            commands::files::write_file,
-            commands::files::write_file_binary,
+            commands::archive::export_csv_archive,
+            commands::archive::get_archive_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn seed_defaults(database: &Database) {
+    let conn = database.conn.lock().unwrap();
+
+    // Seed default goals if none exist
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM goals_config WHERE store = '141'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if count == 0 {
+        let defaults = [
+            ("sp_pct", "SP %", "pct", 2.0, "rate per sale"),
+            ("cust", "Cust #", "int", 40.0, "per day"),
+            ("sp_d", "SP $", "dollar", 250.0, "per day"),
+            ("sp_n", "SP #", "dec1", 6.0, "per day"),
+            ("pts_wk", "Pts/wk", "dec1", 7.0, "per week"),
+        ];
+        for (key, label, fmt, value, unit) in &defaults {
+            let _ = conn.execute(
+                "INSERT OR IGNORE INTO goals_config (store, metric_key, label, fmt, value, unit, locked, note)
+                 VALUES ('141', ?1, ?2, ?3, ?4, ?5, 0, '')",
+                rusqlite::params![key, label, fmt, value, unit],
+            );
+        }
+    }
+
+    // Seed default point system if none exists
+    let ps_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM point_system WHERE store = '141'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if ps_count == 0 {
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO point_system (store, sp_pct_pts, cust_pts, sp_d_pts, sp_n_pts, pts_wk_bonus, note)
+             VALUES ('141', 2, 2, 2, 2, 1, '')",
+            [],
+        );
+    }
+
+    // Seed default trifecta config if none exists
+    let tc_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM trifecta_config WHERE store = '141'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    if tc_count == 0 {
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO trifecta_config
+             (store, sp_d_goal, cust_goal, sp_n_goal,
+              double_sp_d, double_sp_n, double_cust,
+              elite_sp_d, elite_sp_n, elite_cust,
+              fw_count, fw_tier, fw_super, fw_avg_sp_d, fw_avg_cust)
+             VALUES ('141', 250, 40, 6.0, 70, 6, 300, 105, 9, 450, 1.0, 0.5, 0.75, 0.3, 0.2)",
+            [],
+        );
+    }
 }

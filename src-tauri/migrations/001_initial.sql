@@ -1,232 +1,160 @@
--- ============================================================================
--- GS Report Analytics - Initial Database Schema
--- ============================================================================
--- This migration creates all tables for the GS Report Analytics application.
--- The database lives in the app's archive directory and supports indefinite
--- historical data with efficient temporal indexing (day/month/year).
--- ============================================================================
-
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
--- ----------------------------------------------------------------------------
--- Store: Top-level entity representing a retail store location
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS store (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+-- Raw daily records from the GS Report Extractor
+-- This is the core data table. All page computations derive from this.
+CREATE TABLE IF NOT EXISTS daily_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,              -- ISO date YYYY-MM-DD
+    source_file TEXT,                -- Original filename
+    store TEXT NOT NULL,             -- Store number (e.g. "141")
+    dept TEXT NOT NULL,              -- Department (e.g. "GS")
+    last_name TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    cust_num REAL NOT NULL DEFAULT 0,   -- Customer/transaction count
+    sp_qty REAL NOT NULL DEFAULT 0,     -- Service Plan quantity
+    sp_sales REAL NOT NULL DEFAULT 0,   -- Service Plan dollar amount
+    sp_pct REAL NOT NULL DEFAULT 0,     -- SP percentage (raw decimal, e.g. 0.0184)
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(date, store, dept, last_name, first_name)
 );
 
--- ----------------------------------------------------------------------------
--- Employee: Staff members tracked for performance metrics
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS employee (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id        INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    name            TEXT NOT NULL,
-    initials        TEXT NOT NULL,
-    status          TEXT NOT NULL DEFAULT 'Active',
-    weeks_on_record INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(store_id, name)
-);
-CREATE INDEX IF NOT EXISTS idx_employee_store ON employee(store_id);
-
--- ----------------------------------------------------------------------------
--- Daily Metric: Core fact table - one row per employee per working day
--- This is the primary data source for all analytics pages.
--- Columns: sp_pct (SP %), sp_n (SP #), sp_d (SP $), cust (Customer #), pts (Points)
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS daily_metric (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    date        TEXT NOT NULL,
-    sp_pct      REAL,
-    sp_n        REAL,
-    sp_d        REAL,
-    cust        INTEGER,
-    pts         REAL,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(employee_id, date)
+-- Employee roster
+CREATE TABLE IF NOT EXISTS roster (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    dept TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(store, dept, last_name, first_name)
 );
 
--- Temporal indexes for efficient day/month/year queries
-CREATE INDEX IF NOT EXISTS idx_metric_date ON daily_metric(date);
-CREATE INDEX IF NOT EXISTS idx_metric_ym ON daily_metric(substr(date,1,7));
-CREATE INDEX IF NOT EXISTS idx_metric_year ON daily_metric(substr(date,1,4));
-CREATE INDEX IF NOT EXISTS idx_metric_emp_date ON daily_metric(employee_id, date);
-CREATE INDEX IF NOT EXISTS idx_metric_store_date ON daily_metric(store_id, date);
-
--- ----------------------------------------------------------------------------
--- Goal: Performance targets per metric per store
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS goal (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    metric_key  TEXT NOT NULL,
-    label       TEXT NOT NULL,
-    fmt         TEXT NOT NULL DEFAULT 'dec1',
-    value       REAL NOT NULL,
-    unit        TEXT,
-    locked      INTEGER NOT NULL DEFAULT 0,
-    note        TEXT,
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(store_id, metric_key)
+-- Goal targets per metric
+CREATE TABLE IF NOT EXISTS goals_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    metric_key TEXT NOT NULL,        -- sp_pct, cust, sp_d, sp_n, pts_wk
+    label TEXT NOT NULL,             -- Display label
+    fmt TEXT NOT NULL DEFAULT 'dec1', -- Format: pct, dec1, dollar, int
+    value REAL NOT NULL,
+    unit TEXT DEFAULT '',
+    locked INTEGER NOT NULL DEFAULT 0,
+    note TEXT DEFAULT '',
+    UNIQUE(store, metric_key)
 );
 
--- ----------------------------------------------------------------------------
--- Point System: Configuration for how points are calculated per store
--- ----------------------------------------------------------------------------
+-- Point system rules
 CREATE TABLE IF NOT EXISTS point_system (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id     INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    sp_pct_pts   REAL NOT NULL DEFAULT 2.0,
-    cust_pts     REAL NOT NULL DEFAULT 1.0,
-    sp_d_pts     REAL NOT NULL DEFAULT 1.0,
-    sp_n_pts     REAL NOT NULL DEFAULT 1.0,
-    pts_wk_bonus REAL NOT NULL DEFAULT 2.0,
-    note         TEXT,
-    updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(store_id)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    sp_pct_pts REAL NOT NULL DEFAULT 2,
+    cust_pts REAL NOT NULL DEFAULT 2,
+    sp_d_pts REAL NOT NULL DEFAULT 2,
+    sp_n_pts REAL NOT NULL DEFAULT 2,
+    pts_wk_bonus REAL NOT NULL DEFAULT 1,
+    note TEXT DEFAULT '',
+    UNIQUE(store)
 );
 
--- ----------------------------------------------------------------------------
--- Point Exception: Per-employee overrides to the point system
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS point_exception (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    employee_id INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-    status      TEXT,
-    goal        TEXT,
-    locked      INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(store_id, employee_id)
+-- Per-employee points/wk exceptions
+CREATE TABLE IF NOT EXISTS pts_exceptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    employee_name TEXT NOT NULL,     -- "LastName, FirstName"
+    status TEXT DEFAULT 'active',
+    goal_override REAL,
+    locked INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(store, employee_name)
 );
 
--- ----------------------------------------------------------------------------
--- Note: Monthly notes for goal tracking, coaching, and analysis
--- Indexed by YYYY-MM for the Goals page monthly view
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS note (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    month       TEXT NOT NULL,
-    title       TEXT NOT NULL,
-    body        TEXT,
-    locked      INTEGER NOT NULL DEFAULT 0,
-    author      TEXT,
-    category    TEXT NOT NULL DEFAULT 'Misc',
-    censored    INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_note_month ON note(store_id, month);
-
--- ----------------------------------------------------------------------------
--- Trifecta: Records when employee hits all 3 goals on the same shift
--- Tiers 1-5 with escalating difficulty thresholds
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS trifecta (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    date        TEXT NOT NULL,
-    tier        INTEGER NOT NULL CHECK(tier BETWEEN 1 AND 5),
-    sp_d        REAL NOT NULL,
-    cust        INTEGER NOT NULL,
-    sp_n        REAL NOT NULL,
-    archived    INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(employee_id, date)
-);
-CREATE INDEX IF NOT EXISTS idx_trifecta_date ON trifecta(date);
-CREATE INDEX IF NOT EXISTS idx_trifecta_store_date ON trifecta(store_id, date);
-
--- ----------------------------------------------------------------------------
--- Trifecta Formula: Scoring formula configuration per store
--- score = (sp_d * spd_mult * spd_weight) + (cust * cust_mult * cust_weight) + (sp_n * spn_weight)
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS trifecta_formula (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    spd_mult    REAL NOT NULL DEFAULT 1.0,
-    spd_weight  REAL NOT NULL DEFAULT 1.0,
-    cust_mult   REAL NOT NULL DEFAULT 1.0,
-    cust_weight REAL NOT NULL DEFAULT 1.0,
-    spn_weight  REAL NOT NULL DEFAULT 1.0,
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(store_id)
+-- Manager notes (keyed by year-month)
+CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    month TEXT NOT NULL,             -- YYYY-MM
+    title TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT 'Analysis',  -- Analysis, Coaching Ideas, Misc
+    author TEXT DEFAULT '',
+    locked INTEGER NOT NULL DEFAULT 0,
+    censored INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
 );
 
--- ----------------------------------------------------------------------------
--- Gift Card: Rewards issued from trifecta achievements
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS gift_card (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_id     INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-    store_id        INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    amount          REAL NOT NULL,
-    status          TEXT NOT NULL DEFAULT 'pending',
-    fulfilled_date  TEXT,
-    notes           TEXT,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_gift_card_store ON gift_card(store_id);
-CREATE INDEX IF NOT EXISTS idx_gift_card_employee ON gift_card(employee_id);
-
--- ----------------------------------------------------------------------------
--- Audit Log: Tracks all significant actions for accountability
--- Actions: archive, note_edit, pin_attempt, goal_change, import, etc.
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS audit_log (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    action      TEXT NOT NULL,
-    user_name   TEXT,
-    details     TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_audit_date ON audit_log(created_at);
-CREATE INDEX IF NOT EXISTS idx_audit_store ON audit_log(store_id, created_at);
-
--- ----------------------------------------------------------------------------
--- Import Log: Tracks Excel file imports for data provenance
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS import_log (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    store_id    INTEGER NOT NULL REFERENCES store(id) ON DELETE CASCADE,
-    filename    TEXT NOT NULL,
-    records     INTEGER NOT NULL DEFAULT 0,
-    imported_at TEXT NOT NULL DEFAULT (datetime('now'))
+-- Trifecta configuration
+CREATE TABLE IF NOT EXISTS trifecta_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    -- Goals
+    sp_d_goal REAL NOT NULL DEFAULT 250,
+    cust_goal REAL NOT NULL DEFAULT 40,
+    sp_n_goal REAL NOT NULL DEFAULT 6.0,
+    -- Double metrics (standard)
+    double_sp_d REAL NOT NULL DEFAULT 70,
+    double_sp_n REAL NOT NULL DEFAULT 6,
+    double_cust REAL NOT NULL DEFAULT 300,
+    -- Double metrics (elite)
+    elite_sp_d REAL NOT NULL DEFAULT 105,
+    elite_sp_n REAL NOT NULL DEFAULT 9,
+    elite_cust REAL NOT NULL DEFAULT 450,
+    -- Formula weights
+    fw_count REAL NOT NULL DEFAULT 1.0,
+    fw_tier REAL NOT NULL DEFAULT 0.5,
+    fw_super REAL NOT NULL DEFAULT 0.75,
+    fw_avg_sp_d REAL NOT NULL DEFAULT 0.3,
+    fw_avg_cust REAL NOT NULL DEFAULT 0.2,
+    UNIQUE(store)
 );
 
--- ============================================================================
--- Seed default store
--- ============================================================================
-INSERT OR IGNORE INTO store (id, name) VALUES (141, 'Store 141');
+-- Gift card log
+CREATE TABLE IF NOT EXISTS gift_cards (
+    id TEXT PRIMARY KEY,             -- UUID
+    store TEXT NOT NULL,
+    employee_name TEXT NOT NULL,
+    tag TEXT DEFAULT '',             -- e.g. "3rd Trifecta"
+    amount REAL NOT NULL DEFAULT 10,
+    date TEXT NOT NULL,              -- ISO date
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending, in_progress, fulfilled
+    note TEXT DEFAULT ''
+);
 
--- ============================================================================
--- Seed default goals
--- ============================================================================
-INSERT OR IGNORE INTO goal (store_id, metric_key, label, fmt, value, unit, locked, note)
-VALUES
-  (141, 'sp_pct', 'SP %',   'pct',    1.8,  'rate',    0, ''),
-  (141, 'cust',   'Cust #', 'int',    40,   'per day', 0, ''),
-  (141, 'sp_d',   'SP $',   'dollar', 250,  'per day', 1, 'District-set. Do not modify.'),
-  (141, 'sp_n',   'SP #',   'dec1',   6.0,  'per day', 0, ''),
-  (141, 'pts_wk', 'Pts/wk', 'dec1',   7.0,  'per wk',  0, 'Dept average counted weekly.');
+-- Per-employee goal exceptions (for employee detail pages)
+CREATE TABLE IF NOT EXISTS employee_exceptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    employee_name TEXT NOT NULL,     -- "LastName, FirstName"
+    metric_key TEXT NOT NULL,        -- sp_pct, sp_n, sp_d, cust
+    default_goal REAL,
+    override_val REAL,
+    locked INTEGER NOT NULL DEFAULT 0,
+    reason TEXT DEFAULT ''
+);
 
--- ============================================================================
--- Seed default point system
--- ============================================================================
-INSERT OR IGNORE INTO point_system (store_id, sp_pct_pts, cust_pts, sp_d_pts, sp_n_pts, pts_wk_bonus, note)
-VALUES (141, 1.0, 1.0, 1.0, 1.0, 1.0, 'If pts/wk goal met for the week, each working day earns +1 bonus point.');
+-- Per-employee personal goals
+CREATE TABLE IF NOT EXISTS personal_goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    employee_name TEXT NOT NULL,
+    metric_key TEXT NOT NULL,
+    val TEXT NOT NULL,
+    unit TEXT DEFAULT '',
+    locked INTEGER NOT NULL DEFAULT 0,
+    note TEXT DEFAULT ''
+);
 
--- ============================================================================
--- Seed default trifecta formula
--- ============================================================================
-INSERT OR IGNORE INTO trifecta_formula (store_id, spd_mult, spd_weight, cust_mult, cust_weight, spn_weight)
-VALUES (141, 0.02, 1.0, 0.0857, 2.0, 0.5);
+-- Track CSV archive exports
+CREATE TABLE IF NOT EXISTS archive_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    path TEXT NOT NULL,
+    date_from TEXT,
+    date_to TEXT,
+    record_count INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_records_date ON daily_records(date);
+CREATE INDEX IF NOT EXISTS idx_records_store ON daily_records(store, dept);
+CREATE INDEX IF NOT EXISTS idx_records_name ON daily_records(last_name, first_name);
+CREATE INDEX IF NOT EXISTS idx_notes_month ON notes(store, month);
+CREATE INDEX IF NOT EXISTS idx_gift_cards_store ON gift_cards(store);

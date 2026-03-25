@@ -1,6 +1,5 @@
-// Prevents additional console window on Windows in release.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    gs_report_analytics_lib::run()
+    gs_extractor_lib::run()
 }

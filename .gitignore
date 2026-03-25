@@ -1,5 +1,10 @@
-node_modules/
+# Rust/Tauri build artifacts
 src-tauri/target/
-dist/
-*.log
+node_modules/
+
+# Archive data (user-specific)
+archive/
+
+# OS files
 .DS_Store
+Thumbs.db
